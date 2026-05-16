@@ -72,6 +72,7 @@ const pageTitles = {
   Body:     'Body measurements',
   Charts:   'Charts',
   History:  'History',
+  Admin:    'Admin — moderation',
   Settings: 'Settings',
 }
 

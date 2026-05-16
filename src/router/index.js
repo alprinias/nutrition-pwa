@@ -22,9 +22,10 @@ const routes = [
     meta: { requiresGuest: true },
   },
   {
-    path: '/reset-password',
-    name: 'ResetPassword',
-    component: () => import('@/views/auth/ResetPasswordView.vue'),
+    path: '/admin',
+    name: 'Admin',
+    component: () => import('@/views/AdminView.vue'),
+    meta: { requiresAuth: true },
   },
 
   // App routes (require auth) — wrapped in AppShell layout

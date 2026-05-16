@@ -202,7 +202,7 @@ const firstDayOffset = computed(() => {
 const selectedDateLabel = computed(() => {
   if (!selectedDay.value) return ''
   return new Date(viewYear.value, viewMonth.value, selectedDay.value)
-    .toLocaleDateString('el-GR', { weekday: 'long', day: 'numeric', month: 'long' })
+    .toLocaleDateString('el-GR', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })
 })
 
 const dayTotals = computed(() => {

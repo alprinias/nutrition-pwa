@@ -9,13 +9,11 @@
           <input v-model="query" type="search" placeholder="Search…"
             class="input-field pl-10" @input="onSearch" />
         </div>
-        <!-- Admin: new item button -->
-        <button v-if="admin.isAdmin" @click="openNew"
+        <button v-if="admin.isAdmin || true" @click="openNew"
           class="shrink-0 px-3 py-2 bg-green-600 text-white rounded-xl text-lg font-bold active:bg-green-700">
           ＋
         </button>
       </div>
-
       <div class="flex gap-2">
         <button v-for="tab in tabs" :key="tab.key" @click="switchTab(tab.key)"
           :class="['flex-1 py-2 text-sm font-medium rounded-xl transition-colors',
@@ -23,8 +21,6 @@
           {{ tab.label }}
         </button>
       </div>
-
-      <!-- Category filter (ingredients) -->
       <div v-if="activeTab === 'ingredient' && categories.length"
         class="flex gap-2 mt-2 overflow-x-auto pb-1 scrollbar-hide">
         <button @click="activeCategory = ''"
@@ -54,6 +50,9 @@
                 <div class="flex items-center gap-2 flex-wrap">
                   <span class="text-[10px] font-medium px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 shrink-0">
                     {{ item.category || '—' }}</span>
+                  <span :class="['text-[10px] px-1.5 py-0.5 rounded-full shrink-0',
+                    item.is_public ? 'bg-gray-100 text-gray-400' : 'bg-amber-100 text-amber-600']">
+                    {{ item.is_public ? '🌐' : '🔒' }}</span>
                   <p class="text-sm font-medium text-gray-800">{{ item.name }}</p>
                 </div>
                 <p class="text-xs text-gray-400 mt-0.5">per {{ item.ref_quantity }}{{ item.unit }}</p>
@@ -72,9 +71,12 @@
           <template v-else>
             <div class="flex items-start justify-between gap-3">
               <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 flex-wrap">
                   <span class="text-[10px] font-medium px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 shrink-0">
                     {{ item.unit === 'pc' ? 'pieces' : 'by weight' }}</span>
+                  <span :class="['text-[10px] px-1.5 py-0.5 rounded-full shrink-0',
+                    item.is_public ? 'bg-gray-100 text-gray-400' : 'bg-amber-100 text-amber-600']">
+                    {{ item.is_public ? '🌐' : '🔒' }}</span>
                   <p class="text-sm font-medium text-gray-800">{{ item.name }}</p>
                 </div>
                 <p class="text-xs text-gray-400 mt-0.5">
@@ -106,29 +108,69 @@
         <div class="relative bg-white rounded-t-2xl p-5 w-full max-w-md mx-auto space-y-4 max-h-[85vh] overflow-y-auto">
           <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto" />
 
-          <!-- Header with admin actions -->
+          <!-- Header -->
           <div class="flex items-start justify-between gap-3">
             <div class="flex-1 min-w-0">
-              <span class="text-xs font-medium px-2 py-0.5 rounded-full"
-                :class="activeTab === 'recipe' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'">
-                {{ activeTab === 'recipe' ? 'Recipe' : selected.category }}</span>
-              <h3 class="text-lg font-semibold text-gray-900 mt-1">{{ selected.name }}</h3>
+              <div class="flex items-center gap-2 flex-wrap mb-1">
+                <span class="text-[10px] font-medium px-2 py-0.5 rounded-full"
+                  :class="activeTab === 'recipe' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'">
+                  {{ activeTab === 'recipe' ? 'Recipe' : selected.category }}</span>
+                <span :class="['text-[10px] font-medium px-2 py-0.5 rounded-full',
+                  selected.is_public ? 'bg-gray-100 text-gray-500' : 'bg-amber-100 text-amber-700']">
+                  {{ selected.is_public ? '🌐 Public' : '🔒 Private' }}</span>
+              </div>
+              <h3 class="text-lg font-semibold text-gray-900">{{ selected.name }}</h3>
               <p class="text-sm text-gray-400">
                 {{ activeTab === 'ingredient'
                   ? `per ${selected.ref_quantity}${selected.unit}`
-                  : selected.unit === 'pc'
-                    ? `${selected.servings} pieces total`
-                    : `${selected.total_weight_g ?? '?'}g total` }}
+                  : selected.unit === 'pc' ? `${selected.servings} pieces total` : `${selected.total_weight_g ?? '?'}g total` }}
               </p>
             </div>
-            <!-- Admin edit/delete buttons -->
-            <div v-if="admin.isAdmin" class="flex gap-2 shrink-0">
-              <button @click="openEdit(selected)"
-                class="px-3 py-1.5 text-xs font-medium bg-blue-50 text-blue-700 rounded-lg active:bg-blue-100">
-                ✏️ Edit</button>
-              <button @click="confirmDelete(selected)"
-                class="px-3 py-1.5 text-xs font-medium bg-red-50 text-red-600 rounded-lg active:bg-red-100">
-                🗑️</button>
+
+            <!-- Action buttons -->
+            <div class="flex flex-col gap-2 shrink-0">
+              <!-- Admin: edit + delete on everything -->
+              <template v-if="admin.isAdmin">
+                <div class="flex gap-2">
+                  <button @click="openEdit(selected)"
+                    class="px-3 py-1.5 text-xs font-medium bg-blue-50 text-blue-700 rounded-lg active:bg-blue-100">
+                    ✏️ Edit</button>
+                  <button @click="confirmDelete(selected)"
+                    class="px-3 py-1.5 text-xs font-medium bg-red-50 text-red-600 rounded-lg active:bg-red-100">
+                    🗑️</button>
+                </div>
+              </template>
+
+              <!-- Owner of private item: edit + delete + submit -->
+              <template v-else-if="isOwner(selected) && !selected.is_public">
+                <div class="flex gap-2">
+                  <button @click="openEdit(selected)"
+                    class="px-3 py-1.5 text-xs font-medium bg-blue-50 text-blue-700 rounded-lg active:bg-blue-100">
+                    ✏️ Edit</button>
+                  <button @click="confirmDelete(selected)"
+                    class="px-3 py-1.5 text-xs font-medium bg-red-50 text-red-600 rounded-lg active:bg-red-100">
+                    🗑️</button>
+                </div>
+                <!-- Submit for review -->
+                <button
+                  v-if="!pendingRequest(selected)"
+                  @click="openSubmit(selected)"
+                  class="px-3 py-1.5 text-xs font-medium bg-green-50 text-green-700 rounded-lg active:bg-green-100 text-center">
+                  📤 Submit for review
+                </button>
+                <span v-else
+                  class="px-3 py-1.5 text-xs font-medium bg-amber-50 text-amber-700 rounded-lg text-center">
+                  ⏳ Pending review
+                </span>
+              </template>
+
+              <!-- Owner of public item: locked, offer clone -->
+              <template v-else-if="isOwner(selected) && selected.is_public">
+                <button @click="cloneItem(selected)"
+                  class="px-3 py-1.5 text-xs font-medium bg-gray-100 text-gray-600 rounded-lg active:bg-gray-200 text-center">
+                  📋 Create private copy
+                </button>
+              </template>
             </div>
           </div>
 
@@ -156,39 +198,22 @@
             </div>
           </div>
 
-          <!-- Recipe per-unit + ingredients -->
+          <!-- Recipe extras -->
           <template v-if="activeTab === 'recipe'">
             <div class="bg-gray-50 rounded-xl p-3">
               <p class="text-xs font-medium text-gray-600 mb-2">Per {{ selected.unit === 'pc' ? 'piece' : '100g' }}</p>
               <div class="grid grid-cols-4 gap-2 text-center">
-                <div>
-                  <p class="text-sm font-bold text-gray-800">
-                    {{ selected.unit === 'pc' ? (selected.calories_per_unit ?? 0).toFixed(0) : ((selected.calories_per_unit ?? 0) * 100).toFixed(0) }}</p>
-                  <p class="text-[10px] text-gray-400">kcal</p>
-                </div>
-                <div>
-                  <p class="text-sm font-bold text-blue-700">
-                    {{ selected.unit === 'pc' ? (selected.protein_per_unit ?? 0).toFixed(1) : ((selected.protein_per_unit ?? 0) * 100).toFixed(1) }}g</p>
-                  <p class="text-[10px] text-gray-400">prot</p>
-                </div>
-                <div>
-                  <p class="text-sm font-bold text-amber-600">
-                    {{ selected.unit === 'pc' ? (selected.carbs_per_unit ?? 0).toFixed(1) : ((selected.carbs_per_unit ?? 0) * 100).toFixed(1) }}g</p>
-                  <p class="text-[10px] text-gray-400">carbs</p>
-                </div>
-                <div>
-                  <p class="text-sm font-bold text-rose-500">
-                    {{ selected.unit === 'pc' ? (selected.fat_per_unit ?? 0).toFixed(1) : ((selected.fat_per_unit ?? 0) * 100).toFixed(1) }}g</p>
-                  <p class="text-[10px] text-gray-400">fat</p>
-                </div>
+                <div><p class="text-sm font-bold text-gray-800">{{ selected.unit === 'pc' ? (selected.calories_per_unit ?? 0).toFixed(0) : ((selected.calories_per_unit ?? 0)*100).toFixed(0) }}</p><p class="text-[10px] text-gray-400">kcal</p></div>
+                <div><p class="text-sm font-bold text-blue-700">{{ selected.unit === 'pc' ? (selected.protein_per_unit ?? 0).toFixed(1) : ((selected.protein_per_unit ?? 0)*100).toFixed(1) }}g</p><p class="text-[10px] text-gray-400">prot</p></div>
+                <div><p class="text-sm font-bold text-amber-600">{{ selected.unit === 'pc' ? (selected.carbs_per_unit ?? 0).toFixed(1) : ((selected.carbs_per_unit ?? 0)*100).toFixed(1) }}g</p><p class="text-[10px] text-gray-400">carbs</p></div>
+                <div><p class="text-sm font-bold text-rose-500">{{ selected.unit === 'pc' ? (selected.fat_per_unit ?? 0).toFixed(1) : ((selected.fat_per_unit ?? 0)*100).toFixed(1) }}g</p><p class="text-[10px] text-gray-400">fat</p></div>
               </div>
             </div>
             <div>
               <p class="text-xs font-medium text-gray-600 mb-2">Ingredients</p>
               <div v-if="loadingIngredients" class="text-sm text-gray-400 text-center py-3">Loading…</div>
               <ul v-else class="space-y-1.5">
-                <li v-for="ri in recipeIngredients" :key="ri.id"
-                  class="flex items-center justify-between text-sm">
+                <li v-for="ri in recipeIngredients" :key="ri.id" class="flex items-center justify-between text-sm">
                   <span class="text-gray-700">{{ ri.ingredients.name }}</span>
                   <span class="text-gray-400 text-xs">{{ ri.quantity }}{{ ri.unit }}</span>
                 </li>
@@ -202,65 +227,39 @@
       </div>
     </Transition>
 
-    <!-- ── INGREDIENT FORM SHEET ── -->
+    <!-- ── INGREDIENT FORM ── -->
     <Transition name="sheet">
       <div v-if="ingForm.open" class="fixed inset-0 z-50 flex flex-col justify-end">
         <div class="absolute inset-0 bg-black/40" @click="ingForm.open = false" />
         <div class="relative bg-white rounded-t-2xl p-5 w-full max-w-md mx-auto space-y-3 max-h-[90vh] overflow-y-auto">
           <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto" />
           <h3 class="font-semibold text-gray-900">{{ ingForm.id ? 'Edit ingredient' : 'New ingredient' }}</h3>
-
-          <div>
-            <label class="block text-xs text-gray-500 mb-1">Name *</label>
-            <input v-model="ingForm.name" type="text" class="input-field" placeholder="e.g. Κοτόπουλο Στήθος" />
-          </div>
+          <div><label class="block text-xs text-gray-500 mb-1">Name *</label>
+            <input v-model="ingForm.name" type="text" class="input-field" /></div>
           <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block text-xs text-gray-500 mb-1">Category</label>
-              <input v-model="ingForm.category" type="text" class="input-field" placeholder="e.g. Πουλερικά" list="cat-list" />
-              <datalist id="cat-list">
-                <option v-for="c in categories" :key="c" :value="c" />
-              </datalist>
-            </div>
-            <div>
-              <label class="block text-xs text-gray-500 mb-1">Unit</label>
+            <div><label class="block text-xs text-gray-500 mb-1">Category</label>
+              <input v-model="ingForm.category" type="text" class="input-field" list="cat-list" />
+              <datalist id="cat-list"><option v-for="c in categories" :key="c" :value="c" /></datalist></div>
+            <div><label class="block text-xs text-gray-500 mb-1">Unit</label>
               <select v-model="ingForm.unit" class="input-field">
-                <option value="gr">gr</option>
-                <option value="slc">slc</option>
-                <option value="pc">pc</option>
-              </select>
-            </div>
+                <option value="gr">gr</option><option value="slc">slc</option><option value="pc">pc</option>
+              </select></div>
           </div>
-          <div>
-            <label class="block text-xs text-gray-500 mb-1">Reference quantity</label>
-            <input v-model.number="ingForm.ref_quantity" type="number" class="input-field" />
-          </div>
-
-          <p class="text-xs font-medium text-gray-500 uppercase tracking-wide pt-1">
-            Macros per reference quantity</p>
+          <div><label class="block text-xs text-gray-500 mb-1">Reference quantity</label>
+            <input v-model.number="ingForm.ref_quantity" type="number" class="input-field" /></div>
+          <p class="text-xs font-medium text-gray-500 uppercase tracking-wide pt-1">Macros per reference quantity</p>
           <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block text-xs text-gray-500 mb-1">Calories (kcal)</label>
-              <input v-model.number="ingForm.calories" type="number" step="0.1" class="input-field" />
-            </div>
-            <div>
-              <label class="block text-xs text-gray-500 mb-1">Protein (g)</label>
-              <input v-model.number="ingForm.protein_g" type="number" step="0.1" class="input-field" />
-            </div>
-            <div>
-              <label class="block text-xs text-gray-500 mb-1">Carbs (g)</label>
-              <input v-model.number="ingForm.carbs_g" type="number" step="0.1" class="input-field" />
-            </div>
-            <div>
-              <label class="block text-xs text-gray-500 mb-1">Fat (g)</label>
-              <input v-model.number="ingForm.fat_g" type="number" step="0.1" class="input-field" />
-            </div>
-            <div>
-              <label class="block text-xs text-gray-500 mb-1">Sodium (mg)</label>
-              <input v-model.number="ingForm.sodium_mg" type="number" step="1" class="input-field" />
-            </div>
+            <div><label class="block text-xs text-gray-500 mb-1">Calories (kcal)</label>
+              <input v-model.number="ingForm.calories" type="number" step="0.1" class="input-field" /></div>
+            <div><label class="block text-xs text-gray-500 mb-1">Protein (g)</label>
+              <input v-model.number="ingForm.protein_g" type="number" step="0.1" class="input-field" /></div>
+            <div><label class="block text-xs text-gray-500 mb-1">Carbs (g)</label>
+              <input v-model.number="ingForm.carbs_g" type="number" step="0.1" class="input-field" /></div>
+            <div><label class="block text-xs text-gray-500 mb-1">Fat (g)</label>
+              <input v-model.number="ingForm.fat_g" type="number" step="0.1" class="input-field" /></div>
+            <div><label class="block text-xs text-gray-500 mb-1">Sodium (mg)</label>
+              <input v-model.number="ingForm.sodium_mg" type="number" class="input-field" /></div>
           </div>
-
           <p v-if="formError" class="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{{ formError }}</p>
           <div class="flex gap-3 pt-1">
             <button @click="ingForm.open = false" class="btn-secondary">Cancel</button>
@@ -271,35 +270,23 @@
       </div>
     </Transition>
 
-    <!-- ── RECIPE FORM SHEET ── -->
+    <!-- ── RECIPE FORM ── -->
     <Transition name="sheet">
       <div v-if="recForm.open" class="fixed inset-0 z-50 flex flex-col justify-end">
         <div class="absolute inset-0 bg-black/40" @click="recForm.open = false" />
         <div class="relative bg-white rounded-t-2xl p-5 w-full max-w-md mx-auto space-y-3 max-h-[90vh] overflow-y-auto">
           <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto" />
           <h3 class="font-semibold text-gray-900">{{ recForm.id ? 'Edit recipe' : 'New recipe' }}</h3>
-
-          <div>
-            <label class="block text-xs text-gray-500 mb-1">Name *</label>
-            <input v-model="recForm.name" type="text" class="input-field" placeholder="e.g. Κοτόπουλο Κόκκινο" />
-          </div>
+          <div><label class="block text-xs text-gray-500 mb-1">Name *</label>
+            <input v-model="recForm.name" type="text" class="input-field" /></div>
           <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block text-xs text-gray-500 mb-1">Unit</label>
+            <div><label class="block text-xs text-gray-500 mb-1">Unit</label>
               <select v-model="recForm.unit" class="input-field">
-                <option value="gr">By weight (gr)</option>
-                <option value="pc">By pieces (pc)</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-xs text-gray-500 mb-1">
-                {{ recForm.unit === 'pc' ? 'Total pieces' : 'Total weight (g)' }}
-              </label>
-              <input v-model.number="recForm.total_weight_g" type="number" class="input-field" />
-            </div>
+                <option value="gr">By weight (gr)</option><option value="pc">By pieces (pc)</option>
+              </select></div>
+            <div><label class="block text-xs text-gray-500 mb-1">{{ recForm.unit === 'pc' ? 'Total pieces' : 'Total weight (g)' }}</label>
+              <input v-model.number="recForm.total_weight_g" type="number" class="input-field" /></div>
           </div>
-
-          <!-- Ingredient lines -->
           <div>
             <div class="flex items-center justify-between mb-2">
               <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Ingredients</p>
@@ -307,22 +294,13 @@
             </div>
             <div v-for="(line, idx) in recForm.items" :key="idx" class="flex gap-2 mb-2 items-center">
               <div class="flex-1 relative">
-                <input
-                  v-model="line.search"
-                  type="text"
-                  class="input-field text-sm py-2"
-                  placeholder="Search ingredient…"
-                  @input="searchIngredient(line)"
-                  @focus="line.showDropdown = true"
-                />
-                <!-- Dropdown -->
+                <input v-model="line.search" type="text" class="input-field text-sm py-2" placeholder="Search ingredient…"
+                  @input="searchIngredient(line)" @focus="line.showDropdown = true" />
                 <ul v-if="line.showDropdown && line.suggestions.length"
                   class="absolute z-10 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-40 overflow-y-auto mt-1">
-                  <li v-for="s in line.suggestions" :key="s.id"
-                    @mousedown.prevent="pickIngredient(line, s)"
+                  <li v-for="s in line.suggestions" :key="s.id" @mousedown.prevent="pickIngredient(line, s)"
                     class="px-3 py-2 text-sm hover:bg-green-50 cursor-pointer">
-                    {{ s.name }}
-                    <span class="text-xs text-gray-400 ml-1">{{ s.ref_quantity }}{{ s.unit }}</span>
+                    {{ s.name }}<span class="text-xs text-gray-400 ml-1">{{ s.ref_quantity }}{{ s.unit }}</span>
                   </li>
                 </ul>
               </div>
@@ -332,32 +310,43 @@
               <button @click="recForm.items.splice(idx, 1)" class="text-gray-300 active:text-red-500 text-lg">✕</button>
             </div>
           </div>
-
-          <!-- Live macro preview -->
           <div v-if="recipePreview.calories > 0" class="bg-gray-50 rounded-xl p-3 grid grid-cols-4 gap-2 text-center">
-            <div>
-              <p class="text-sm font-bold text-gray-800">{{ recipePreview.calories.toFixed(0) }}</p>
-              <p class="text-[10px] text-gray-400">kcal</p>
-            </div>
-            <div>
-              <p class="text-sm font-bold text-blue-700">{{ recipePreview.protein.toFixed(1) }}g</p>
-              <p class="text-[10px] text-gray-400">prot</p>
-            </div>
-            <div>
-              <p class="text-sm font-bold text-amber-600">{{ recipePreview.carbs.toFixed(1) }}g</p>
-              <p class="text-[10px] text-gray-400">carbs</p>
-            </div>
-            <div>
-              <p class="text-sm font-bold text-rose-500">{{ recipePreview.fat.toFixed(1) }}g</p>
-              <p class="text-[10px] text-gray-400">fat</p>
-            </div>
+            <div><p class="text-sm font-bold text-gray-800">{{ recipePreview.calories.toFixed(0) }}</p><p class="text-[10px] text-gray-400">kcal</p></div>
+            <div><p class="text-sm font-bold text-blue-700">{{ recipePreview.protein.toFixed(1) }}g</p><p class="text-[10px] text-gray-400">prot</p></div>
+            <div><p class="text-sm font-bold text-amber-600">{{ recipePreview.carbs.toFixed(1) }}g</p><p class="text-[10px] text-gray-400">carbs</p></div>
+            <div><p class="text-sm font-bold text-rose-500">{{ recipePreview.fat.toFixed(1) }}g</p><p class="text-[10px] text-gray-400">fat</p></div>
           </div>
-
           <p v-if="formError" class="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{{ formError }}</p>
           <div class="flex gap-3 pt-1">
             <button @click="recForm.open = false" class="btn-secondary">Cancel</button>
             <button @click="saveRecipe" class="btn-primary" :disabled="formSaving">
               {{ formSaving ? 'Saving…' : 'Save' }}</button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- ── SUBMIT FOR REVIEW SHEET ── -->
+    <Transition name="sheet">
+      <div v-if="submitSheet.open" class="fixed inset-0 z-50 flex items-end justify-center">
+        <div class="absolute inset-0 bg-black/40" @click="submitSheet.open = false" />
+        <div class="relative bg-white rounded-t-2xl p-5 w-full max-w-md mx-auto space-y-4">
+          <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto" />
+          <p class="font-semibold text-gray-900">Submit for review</p>
+          <p class="text-sm text-gray-500">
+            "<strong>{{ submitSheet.item?.name }}</strong>" will be reviewed by the admin.
+            If approved it becomes public and can no longer be edited.
+          </p>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Note to admin (optional)</label>
+            <textarea v-model="submitSheet.note" class="input-field text-sm" rows="2"
+              placeholder="e.g. source, brand, any relevant info…" />
+          </div>
+          <p v-if="submitSheet.error" class="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{{ submitSheet.error }}</p>
+          <div class="flex gap-3">
+            <button @click="submitSheet.open = false" class="btn-secondary">Cancel</button>
+            <button @click="submitForReview" class="btn-primary" :disabled="submitSheet.saving">
+              {{ submitSheet.saving ? 'Submitting…' : 'Submit' }}</button>
           </div>
         </div>
       </div>
@@ -376,10 +365,17 @@
             <button @click="deleteTarget = null" class="btn-secondary">Cancel</button>
             <button @click="doDelete"
               class="flex-1 py-3 px-4 bg-red-500 text-white font-medium rounded-xl active:bg-red-600"
-              :disabled="deleteLoading">
-              {{ deleteLoading ? 'Deleting…' : 'Delete' }}</button>
+              :disabled="deleteLoading">{{ deleteLoading ? 'Deleting…' : 'Delete' }}</button>
           </div>
         </div>
+      </div>
+    </Transition>
+
+    <!-- ── CLONE SUCCESS TOAST ── -->
+    <Transition name="sheet">
+      <div v-if="cloneMsg" class="fixed bottom-24 left-1/2 -translate-x-1/2 z-50
+        bg-gray-800 text-white text-sm px-4 py-2 rounded-xl shadow-lg">
+        {{ cloneMsg }}
       </div>
     </Transition>
 
@@ -390,9 +386,13 @@
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { supabase } from '@/lib/supabase'
+import { useAuthStore } from '@/stores/auth'
 import { useAdminStore } from '@/stores/admin'
+import { useUserPrefs } from '@/composables/useUserPrefs'
 
+const auth  = useAuthStore()
 const admin = useAdminStore()
+const prefs = useUserPrefs()
 
 const PAGE_SIZE = 30
 const query = ref('')
@@ -408,10 +408,26 @@ const selected = ref(null)
 const recipeIngredients = ref([])
 const loadingIngredients = ref(false)
 
+// Moderation requests for current user (to show pending badge)
+const myRequests = ref([])
+
 const tabs = [
   { key: 'ingredient', label: 'Ingredients' },
   { key: 'recipe',     label: 'Recipes'     },
 ]
+
+// ── helpers ───────────────────────────────────────────────────────────────────
+function isOwner(item) {
+  return item.owner_user_id === auth.user?.id
+}
+
+function pendingRequest(item) {
+  return myRequests.value.find(r =>
+    r.entity_type === activeTab.value &&
+    r.entity_id === item.id &&
+    r.status === 'pending'
+  )
+}
 
 // ── Fetch list ────────────────────────────────────────────────────────────────
 async function fetchItems(reset = true) {
@@ -419,20 +435,24 @@ async function fetchItems(reset = true) {
   else loadingMore.value = true
 
   const q = query.value.trim()
+  const showPublic = prefs.showPublicFoods.value
   let data = []
 
   if (activeTab.value === 'ingredient') {
     let qb = supabase.from('ingredients')
-      .select('id, name, category, unit, ref_quantity, calories, protein_g, carbs_g, fat_g')
+      .select('id, name, category, unit, ref_quantity, calories, protein_g, carbs_g, fat_g, is_public, owner_user_id')
       .order('name').range(offset.value, offset.value + PAGE_SIZE - 1)
     if (q) qb = qb.ilike('name', `%${q}%`)
     if (activeCategory.value) qb = qb.eq('category', activeCategory.value)
+    // RLS already filters; if user doesn't want public, add extra filter
+    if (!showPublic && !admin.isAdmin) qb = qb.eq('owner_user_id', auth.user.id)
     const res = await qb; data = res.data ?? []
   } else {
     let qb = supabase.from('recipes')
-      .select('id, name, unit, total_weight_g, servings, calories_total, protein_total, carbs_total, fat_total, calories_per_unit, protein_per_unit, carbs_per_unit, fat_per_unit')
+      .select('id, name, unit, total_weight_g, servings, calories_total, protein_total, carbs_total, fat_total, calories_per_unit, protein_per_unit, carbs_per_unit, fat_per_unit, is_public, owner_user_id')
       .order('name').range(offset.value, offset.value + PAGE_SIZE - 1)
     if (q) qb = qb.ilike('name', `%${q}%`)
+    if (!showPublic && !admin.isAdmin) qb = qb.eq('owner_user_id', auth.user.id)
     const res = await qb; data = res.data ?? []
   }
 
@@ -447,13 +467,17 @@ async function loadCategories() {
   categories.value = [...new Set((data ?? []).map(r => r.category).filter(Boolean))]
 }
 
-function loadMore() { fetchItems(false) }
-
-let searchTimer = null
-function onSearch() {
-  clearTimeout(searchTimer)
-  searchTimer = setTimeout(() => fetchItems(true), 300)
+async function loadMyRequests() {
+  const { data } = await supabase.from('moderation_requests')
+    .select('entity_type, entity_id, status')
+    .eq('user_id', auth.user.id)
+    .in('status', ['pending', 'rejected'])
+  myRequests.value = data ?? []
 }
+
+function loadMore() { fetchItems(false) }
+let searchTimer = null
+function onSearch() { clearTimeout(searchTimer); searchTimer = setTimeout(() => fetchItems(true), 300) }
 function switchTab(key) { activeTab.value = key; activeCategory.value = ''; query.value = ''; fetchItems(true) }
 watch(activeCategory, () => fetchItems(true))
 
@@ -462,8 +486,7 @@ async function select(item) {
   if (activeTab.value === 'recipe') {
     loadingIngredients.value = true
     const { data } = await supabase.from('recipe_items')
-      .select('id, quantity, unit, ingredients ( name )')
-      .eq('recipe_id', item.id).order('id')
+      .select('id, quantity, unit, ingredients ( name )').eq('recipe_id', item.id).order('id')
     recipeIngredients.value = data ?? []
     loadingIngredients.value = false
   }
@@ -471,12 +494,10 @@ async function select(item) {
 
 // ── Ingredient form ───────────────────────────────────────────────────────────
 const ingForm = reactive({
-  open: false, id: null,
-  name: '', category: '', unit: 'gr', ref_quantity: 100,
-  calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0, sodium_mg: null,
+  open: false, id: null, name: '', category: '', unit: 'gr',
+  ref_quantity: 100, calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0, sodium_mg: null,
 })
-const formError  = ref('')
-const formSaving = ref(false)
+const formError = ref(''); const formSaving = ref(false)
 
 function openNew() {
   formError.value = ''
@@ -497,11 +518,8 @@ function openEdit(item) {
       open: true, id: item.id, name: item.name, unit: item.unit,
       total_weight_g: item.unit === 'pc' ? item.servings : item.total_weight_g,
       items: recipeIngredients.value.map(ri => ({
-        ingredient_id: ri.ingredients?.id ?? null,
-        search: ri.ingredients?.name ?? '',
-        quantity: ri.quantity, unit: ri.unit,
-        suggestions: [], showDropdown: false,
-        _ing: ri.ingredients,
+        ingredient_id: ri.ingredients?.id ?? null, search: ri.ingredients?.name ?? '',
+        quantity: ri.quantity, unit: ri.unit, suggestions: [], showDropdown: false, _ing: ri.ingredients,
       }))
     })
   }
@@ -511,17 +529,20 @@ async function saveIngredient() {
   if (!ingForm.name.trim()) { formError.value = 'Name is required.'; return }
   formSaving.value = true; formError.value = ''
   const row = {
-    name: ingForm.name.trim(), category: ingForm.category || null,
-    unit: ingForm.unit, ref_quantity: ingForm.ref_quantity,
-    calories: ingForm.calories, protein_g: ingForm.protein_g,
-    carbs_g: ingForm.carbs_g, fat_g: ingForm.fat_g,
-    sodium_mg: ingForm.sodium_mg || null,
+    name: ingForm.name.trim(), category: ingForm.category || null, unit: ingForm.unit,
+    ref_quantity: ingForm.ref_quantity, calories: ingForm.calories, protein_g: ingForm.protein_g,
+    carbs_g: ingForm.carbs_g, fat_g: ingForm.fat_g, sodium_mg: ingForm.sodium_mg || null,
   }
-  const { error } = ingForm.id
-    ? await supabase.from('ingredients').update(row).eq('id', ingForm.id)
-    : await supabase.from('ingredients').insert(row)
-  if (error) { formError.value = error.message }
-  else { ingForm.open = false; fetchItems(true); loadCategories() }
+  if (ingForm.id) {
+    const { error } = await supabase.from('ingredients').update(row).eq('id', ingForm.id)
+    if (error) { formError.value = error.message; formSaving.value = false; return }
+  } else {
+    const { error } = await supabase.from('ingredients').insert({
+      ...row, owner_user_id: auth.user.id, is_public: false
+    })
+    if (error) { formError.value = error.message; formSaving.value = false; return }
+  }
+  ingForm.open = false; fetchItems(true); loadCategories()
   formSaving.value = false
 }
 
@@ -533,10 +554,8 @@ const recipePreview = computed(() => {
   recForm.items.forEach(line => {
     if (!line._ing || !line.quantity) return
     const factor = line.quantity / (line._ing.ref_quantity ?? 100)
-    cal   += (line._ing.calories  ?? 0) * factor
-    prot  += (line._ing.protein_g ?? 0) * factor
-    carbs += (line._ing.carbs_g   ?? 0) * factor
-    fat   += (line._ing.fat_g     ?? 0) * factor
+    cal += (line._ing.calories ?? 0) * factor; prot += (line._ing.protein_g ?? 0) * factor
+    carbs += (line._ing.carbs_g ?? 0) * factor; fat += (line._ing.fat_g ?? 0) * factor
   })
   return { calories: cal, protein: prot, carbs, fat }
 })
@@ -548,8 +567,7 @@ function addIngLine() {
 let ingSearchTimers = {}
 async function searchIngredient(line) {
   line.ingredient_id = null; line._ing = null
-  const q = line.search.trim()
-  if (q.length < 2) { line.suggestions = []; return }
+  const q = line.search.trim(); if (q.length < 2) { line.suggestions = []; return }
   clearTimeout(ingSearchTimers[line])
   ingSearchTimers[line] = setTimeout(async () => {
     const { data } = await supabase.from('ingredients')
@@ -560,69 +578,110 @@ async function searchIngredient(line) {
 }
 
 function pickIngredient(line, ing) {
-  line.ingredient_id = ing.id; line._ing = ing
-  line.search = ing.name; line.unit = ing.unit
-  line.suggestions = []; line.showDropdown = false
+  line.ingredient_id = ing.id; line._ing = ing; line.search = ing.name
+  line.unit = ing.unit; line.suggestions = []; line.showDropdown = false
 }
 
 async function saveRecipe() {
   if (!recForm.name.trim()) { formError.value = 'Name is required.'; return }
   formSaving.value = true; formError.value = ''
-
-  const isPC = recForm.unit === 'pc'
-  const totalVal = recForm.total_weight_g ?? 0
+  const isPC = recForm.unit === 'pc'; const totalVal = recForm.total_weight_g ?? 0
   const preview = recipePreview.value
   const perUnit = totalVal > 0
-    ? { cal: preview.calories / totalVal, prot: preview.protein / totalVal,
-        carb: preview.carbs   / totalVal, fat:  preview.fat    / totalVal }
+    ? { cal: preview.calories/totalVal, prot: preview.protein/totalVal, carb: preview.carbs/totalVal, fat: preview.fat/totalVal }
     : { cal: 0, prot: 0, carb: 0, fat: 0 }
-
   const recipeRow = {
-    name: recForm.name.trim(),
-    unit: recForm.unit,
-    total_weight_g: isPC ? null : totalVal,
-    servings:       isPC ? totalVal : 1,
-    calories_total:  preview.calories,
-    protein_total:   preview.protein,
-    carbs_total:     preview.carbs,
-    fat_total:       preview.fat,
-    calories_per_unit: perUnit.cal,
-    protein_per_unit:  perUnit.prot,
-    carbs_per_unit:    perUnit.carb,
-    fat_per_unit:      perUnit.fat,
+    name: recForm.name.trim(), unit: recForm.unit,
+    total_weight_g: isPC ? null : totalVal, servings: isPC ? totalVal : 1,
+    calories_total: preview.calories, protein_total: preview.protein,
+    carbs_total: preview.carbs, fat_total: preview.fat,
+    calories_per_unit: perUnit.cal, protein_per_unit: perUnit.prot,
+    carbs_per_unit: perUnit.carb, fat_per_unit: perUnit.fat,
   }
-
   let recipeId = recForm.id
   if (recipeId) {
     const { error } = await supabase.from('recipes').update(recipeRow).eq('id', recipeId)
     if (error) { formError.value = error.message; formSaving.value = false; return }
     await supabase.from('recipe_items').delete().eq('recipe_id', recipeId)
   } else {
-    const { data, error } = await supabase.from('recipes').insert(recipeRow).select('id').single()
+    const { data, error } = await supabase.from('recipes')
+      .insert({ ...recipeRow, owner_user_id: auth.user.id, is_public: false }).select('id').single()
     if (error) { formError.value = error.message; formSaving.value = false; return }
     recipeId = data.id
   }
-
-  // Insert recipe_items
   const validLines = recForm.items.filter(l => l.ingredient_id && l.quantity)
   if (validLines.length) {
-    const { error } = await supabase.from('recipe_items').insert(
+    await supabase.from('recipe_items').insert(
       validLines.map(l => ({ recipe_id: recipeId, ingredient_id: l.ingredient_id, quantity: l.quantity, unit: l.unit }))
     )
-    if (error) { formError.value = error.message; formSaving.value = false; return }
   }
+  recForm.open = false; fetchItems(true); formSaving.value = false
+}
 
-  recForm.open = false; fetchItems(true)
-  formSaving.value = false
+// ── Clone (copy-on-write for locked public items) ─────────────────────────────
+const cloneMsg = ref('')
+
+async function cloneItem(item) {
+  selected.value = null
+  if (activeTab.value === 'ingredient') {
+    const { error } = await supabase.from('ingredients').insert({
+      name: item.name + ' (copy)', category: item.category, unit: item.unit,
+      ref_quantity: item.ref_quantity, calories: item.calories,
+      protein_g: item.protein_g, carbs_g: item.carbs_g, fat_g: item.fat_g,
+      sodium_mg: item.sodium_mg, owner_user_id: auth.user.id, is_public: false,
+    })
+    if (!error) { cloneMsg.value = 'Private copy created — check your ingredients.'; fetchItems(true) }
+  } else {
+    // Clone recipe header
+    const { data, error } = await supabase.from('recipes').insert({
+      name: item.name + ' (copy)', unit: item.unit,
+      total_weight_g: item.total_weight_g, servings: item.servings,
+      calories_total: item.calories_total, protein_total: item.protein_total,
+      carbs_total: item.carbs_total, fat_total: item.fat_total,
+      calories_per_unit: item.calories_per_unit, protein_per_unit: item.protein_per_unit,
+      carbs_per_unit: item.carbs_per_unit, fat_per_unit: item.fat_per_unit,
+      owner_user_id: auth.user.id, is_public: false,
+    }).select('id').single()
+    if (!error && recipeIngredients.value.length) {
+      await supabase.from('recipe_items').insert(
+        recipeIngredients.value.map(ri => ({
+          recipe_id: data.id, ingredient_id: ri.ingredients?.id ?? ri.ingredient_id,
+          quantity: ri.quantity, unit: ri.unit,
+        }))
+      )
+    }
+    if (!error) { cloneMsg.value = 'Private copy created — check your recipes.'; fetchItems(true) }
+  }
+  setTimeout(() => cloneMsg.value = '', 3000)
+}
+
+// ── Submit for review ─────────────────────────────────────────────────────────
+const submitSheet = reactive({ open: false, item: null, note: '', saving: false, error: '' })
+
+function openSubmit(item) { selected.value = null; Object.assign(submitSheet, { open: true, item, note: '', error: '' }) }
+
+async function submitForReview() {
+  submitSheet.saving = true; submitSheet.error = ''
+  const { error } = await supabase.from('moderation_requests').insert({
+    user_id: auth.user.id,
+    entity_type: activeTab.value,
+    entity_id: submitSheet.item.id,
+    note: submitSheet.note || null,
+    status: 'pending',
+  })
+  if (error) {
+    submitSheet.error = error.message.includes('unique')
+      ? 'A review request already exists for this item.'
+      : error.message
+  } else {
+    submitSheet.open = false; loadMyRequests()
+  }
+  submitSheet.saving = false
 }
 
 // ── Delete ────────────────────────────────────────────────────────────────────
-const deleteTarget  = ref(null)
-const deleteError   = ref('')
-const deleteLoading = ref(false)
-
+const deleteTarget = ref(null); const deleteError = ref(''); const deleteLoading = ref(false)
 function confirmDelete(item) { selected.value = null; deleteTarget.value = item; deleteError.value = '' }
-
 async function doDelete() {
   deleteLoading.value = true; deleteError.value = ''
   const table = activeTab.value === 'ingredient' ? 'ingredients' : 'recipes'
@@ -631,13 +690,14 @@ async function doDelete() {
     deleteError.value = error.message.includes('foreign key')
       ? 'Cannot delete — this item is used in meal logs or recipes.'
       : error.message
-  } else {
-    deleteTarget.value = null; fetchItems(true)
-  }
+  } else { deleteTarget.value = null; fetchItems(true) }
   deleteLoading.value = false
 }
 
-onMounted(() => { admin.init(); loadCategories(); fetchItems(true) })
+onMounted(async () => {
+  await Promise.all([admin.init(), prefs.load()])
+  loadCategories(); fetchItems(true); loadMyRequests()
+})
 </script>
 
 <style scoped>

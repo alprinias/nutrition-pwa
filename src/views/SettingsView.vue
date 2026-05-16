@@ -114,6 +114,39 @@
       </div>
     </div>
 
+    <!-- Admin panel link -->
+    <RouterLink v-if="adminStore.isAdmin" to="/admin"
+      class="card flex items-center justify-between active:bg-gray-50">
+      <div>
+        <p class="font-medium text-gray-800">Admin — moderation queue</p>
+        <p class="text-xs text-gray-400 mt-0.5">Review submitted ingredients & recipes</p>
+      </div>
+      <span class="text-gray-400">›</span>
+    </RouterLink>
+
+    <!-- Food visibility preference -->
+    <div class="card space-y-3">
+      <h2 class="font-semibold text-gray-800">Food library</h2>
+      <div class="flex items-center justify-between gap-4">
+        <div class="flex-1">
+          <p class="text-sm font-medium text-gray-700">Show public ingredients & recipes</p>
+          <p class="text-xs text-gray-400 mt-0.5">When off, only your personal items appear in Foods and search.</p>
+        </div>
+        <button
+          @click="togglePublicFoods"
+          :class="[
+            'relative shrink-0 w-12 h-6 rounded-full transition-colors duration-200',
+            prefs.showPublicFoods.value ? 'bg-green-600' : 'bg-gray-300'
+          ]"
+        >
+          <span :class="[
+            'absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200',
+            prefs.showPublicFoods.value ? 'translate-x-6' : 'translate-x-0'
+          ]" />
+        </button>
+      </div>
+    </div>
+
     <!-- Sign out -->
     <button @click="handleLogout" class="btn-secondary text-red-500 border-red-100">
       Sign out
@@ -124,9 +157,11 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, RouterLink } from 'vue-router'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth'
+import { useAdminStore } from '@/stores/admin'
+import { useUserPrefs } from '@/composables/useUserPrefs'
 
 // Inline sub-components to keep things in one file
 import { defineComponent, h } from 'vue'
@@ -196,6 +231,12 @@ const TargetSummaryRow = defineComponent({
 
 const auth = useAuthStore()
 const router = useRouter()
+const prefs = useUserPrefs()
+const adminStore = useAdminStore()
+
+async function togglePublicFoods() {
+  await prefs.setShowPublicFoods(!prefs.showPublicFoods.value)
+}
 
 const editing = ref(false)
 const saving = ref(false)
@@ -275,5 +316,5 @@ async function handleLogout() {
   router.push({ name: 'Login' })
 }
 
-onMounted(loadTargets)
+onMounted(() => { loadTargets(); prefs.load(); adminStore.init() })
 </script>

@@ -395,7 +395,7 @@ const chartLabels = computed(() => {
   return chartPoints.value.map(p => {
     if (granularity.value === 'day') {
       const d = new Date(p.date + 'T12:00:00')
-      return d.toLocaleDateString('el-GR', { day: 'numeric', month: 'numeric' })
+      return d.toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit' })
     }
     if (granularity.value === 'week') return p.date.replace('-', ' ')
     // month
@@ -441,7 +441,7 @@ const bodyLabels = computed(() => {
   return bodyPoints.value.map(p => {
     if (granularity.value === 'day') {
       const d = new Date(p.date + 'T12:00:00')
-      return d.toLocaleDateString('el-GR', { day: 'numeric', month: 'numeric' })
+      return d.toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit' })
     }
     if (granularity.value === 'week') return p.date.replace('-', ' ')
     const [y, m] = p.date.split('-')

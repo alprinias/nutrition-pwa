@@ -149,7 +149,7 @@ const hasAnyValue = computed(() =>
 
 function formatDate(dateStr) {
   return new Date(dateStr + 'T12:00:00').toLocaleDateString('el-GR', {
-    weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+    day: '2-digit', month: '2-digit', year: 'numeric',
   })
 }
 

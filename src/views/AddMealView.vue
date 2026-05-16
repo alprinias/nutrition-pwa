@@ -175,13 +175,15 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick, watch } from 'vue'
+import { ref, computed, nextTick, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth'
+import { useUserPrefs } from '@/composables/useUserPrefs'
 
-const auth = useAuthStore()
+const auth  = useAuthStore()
 const router = useRouter()
+const prefs = useUserPrefs()
 
 const query = ref('')
 const activeTab = ref('all')
@@ -221,25 +223,23 @@ async function doSearch() {
   const promises = []
 
   if (activeTab.value !== 'recipe') {
-    promises.push(
-      supabase
-        .from('ingredients')
-        .select('id, name, category, unit, ref_quantity, calories, protein_g, carbs_g, fat_g')
-        .ilike('name', `%${q}%`)
-        .limit(30)
-        .then(({ data }) => (data ?? []).map(r => ({ ...r, type: 'ingredient' })))
-    )
+    let qb = supabase
+      .from('ingredients')
+      .select('id, name, category, unit, ref_quantity, calories, protein_g, carbs_g, fat_g')
+      .ilike('name', `%${q}%`)
+      .limit(30)
+    if (!prefs.showPublicFoods.value) qb = qb.eq('owner_user_id', auth.user.id)
+    promises.push(qb.then(({ data }) => (data ?? []).map(r => ({ ...r, type: 'ingredient' }))))
   }
 
   if (activeTab.value !== 'ingredient') {
-    promises.push(
-      supabase
-        .from('recipes')
-        .select('id, name, total_weight_g, servings, unit, calories_total, protein_total, carbs_total, fat_total, calories_per_unit, protein_per_unit, carbs_per_unit, fat_per_unit')
-        .ilike('name', `%${q}%`)
-        .limit(20)
-        .then(({ data }) => (data ?? []).map(r => ({ ...r, type: 'recipe' })))
-    )
+    let qb = supabase
+      .from('recipes')
+      .select('id, name, total_weight_g, servings, unit, calories_total, protein_total, carbs_total, fat_total, calories_per_unit, protein_per_unit, carbs_per_unit, fat_per_unit')
+      .ilike('name', `%${q}%`)
+      .limit(20)
+    if (!prefs.showPublicFoods.value) qb = qb.eq('owner_user_id', auth.user.id)
+    promises.push(qb.then(({ data }) => (data ?? []).map(r => ({ ...r, type: 'recipe' }))))
   }
 
   const all = (await Promise.all(promises)).flat()
@@ -356,6 +356,8 @@ async function logMeal() {
   selected.value = null
   router.push({ name: 'Today' })
 }
+
+onMounted(() => prefs.load())
 </script>
 
 <style scoped>
@@ -364,3 +366,4 @@ async function logMeal() {
 .sheet-enter-from, .sheet-leave-to { opacity: 0; }
 .sheet-enter-from .relative { transform: translateY(100%); }
 </style>
+
