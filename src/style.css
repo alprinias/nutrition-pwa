@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --color-brand: #16a34a;
+    --color-brand-light: #bbf7d0;
+    --color-brand-dark: #14532d;
+  }
+
+  html {
+    font-family: 'DM Sans', sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-gray-50 text-gray-900 antialiased;
+    overscroll-behavior: none;
+  }
+
+  /* Safe area insets for iOS notch / home indicator */
+  #app {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply w-full py-3 px-4 bg-green-600 text-white font-medium rounded-xl
+           active:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply w-full py-3 px-4 bg-white text-green-700 font-medium rounded-xl border border-green-200
+           active:bg-green-50 transition-colors;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900
+           placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent
+           transition-shadow;
+  }
+
+  .card {
+    @apply bg-white rounded-2xl shadow-sm border border-gray-100 p-4;
+  }
+
+  .macro-pill {
+    @apply flex flex-col items-center px-3 py-2 rounded-xl;
+  }
+
+  .nav-tab {
+    @apply flex flex-col items-center gap-0.5 py-2 px-4 text-gray-400
+           transition-colors active:text-green-600;
+  }
+
+  .nav-tab.active {
+    @apply text-green-600;
+  }
+}
