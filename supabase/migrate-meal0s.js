@@ -88,10 +88,10 @@ function excelDateToISO(dateVal, timeVal) {
     const totalSeconds = Math.round(timeVal * 86400)
     const hh = Math.floor(totalSeconds / 3600)
     const mm = Math.floor((totalSeconds % 3600) / 60)
-    d.setHours(hh, mm, 0, 0)
+    d.setUTCHours(hh, mm, 0, 0)
   } else if (timeVal && typeof timeVal === 'string') {
     const [hh, mm] = timeVal.split(':').map(Number)
-    d.setHours(hh || 0, mm || 0, 0, 0)
+    d.setUTCHours(hh || 0, mm || 0, 0, 0)
   }
 
   return d.toISOString()
