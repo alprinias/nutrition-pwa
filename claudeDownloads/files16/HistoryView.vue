@@ -69,56 +69,50 @@
       </div>
 
       <template v-else>
-        <!-- Calorie ring + macro bars (mirrors TodayView layout) -->
-        <div class="card mb-3 flex items-center gap-5">
-          <!-- Calorie ring -->
-          <div class="relative w-20 h-20 flex-shrink-0">
-            <svg class="w-20 h-20 -rotate-90" viewBox="0 0 100 100">
-              <circle cx="50" cy="50" r="42" fill="none" stroke="#f3f4f6" stroke-width="10" />
-              <circle
-                cx="50" cy="50" r="42"
-                fill="none" stroke="#16a34a" stroke-width="10" stroke-linecap="round"
-                :stroke-dasharray="`${Math.min(1, dayTotals.calories / targets.target_kcal) * 263.9} 263.9`"
-                class="transition-all duration-700"
-              />
-            </svg>
-            <div class="absolute inset-0 flex flex-col items-center justify-center">
-              <span class="text-sm font-bold text-gray-900 leading-none">{{ dayTotals.calories.toFixed(0) }}</span>
-              <span class="text-[9px] text-gray-400">kcal</span>
-            </div>
+        <!-- Macro summary -->
+        <div class="grid grid-cols-3 gap-3 mb-3">
+          <div class="card macro-pill bg-blue-50 border-blue-100">
+            <span class="text-xs font-medium text-blue-600">Protein</span>
+            <span class="text-lg font-bold text-blue-800">{{ dayTotals.protein.toFixed(0) }}</span>
+            <span class="text-[10px] text-blue-500">g</span>
           </div>
+          <div class="card macro-pill bg-amber-50 border-amber-100">
+            <span class="text-xs font-medium text-amber-600">Carbs</span>
+            <span class="text-lg font-bold text-amber-800">{{ dayTotals.carbs.toFixed(0) }}</span>
+            <span class="text-[10px] text-amber-500">g</span>
+          </div>
+          <div class="card macro-pill bg-rose-50 border-rose-100">
+            <span class="text-xs font-medium text-rose-600">Fat</span>
+            <span class="text-lg font-bold text-rose-800">{{ dayTotals.fat.toFixed(0) }}</span>
+            <span class="text-[10px] text-rose-500">g</span>
+          </div>
+        </div>
 
-          <!-- Macro bars -->
-          <div class="flex-1 space-y-2">
-            <MacroBar label="Protein" :value="dayTotals.protein" :max="targets.prot_max_g" color="bg-blue-500"  unit="g" />
-            <MacroBar label="Carbs"   :value="dayTotals.carbs"   :max="targets.carb_max_g" color="bg-amber-400" unit="g" />
-            <MacroBar label="Fat"     :value="dayTotals.fat"      :max="targets.fat_max_g"  color="bg-rose-400"  unit="g" />
-          </div>
+        <!-- Macro % bars -->
+        <div class="card mb-3 space-y-2">
+          <MacroBar label="Protein" :value="dayTotals.protein" :max="targets.prot_max_g" color="bg-blue-500" unit="g" />
+          <MacroBar label="Carbs"   :value="dayTotals.carbs"   :max="targets.carb_max_g" color="bg-amber-400" unit="g" />
+          <MacroBar label="Fat"     :value="dayTotals.fat"      :max="targets.fat_max_g"  color="bg-rose-400"  unit="g" />
         </div>
 
         <!-- Meal list -->
         <ul class="space-y-2">
           <li v-for="meal in dayMeals" :key="meal.id" class="card flex items-start gap-3">
-            <div class="shrink-0 bg-gray-50 rounded-xl px-2 py-1 min-w-[46px] text-center mt-0.5">
+            <div class="shrink-0 bg-gray-50 rounded-xl px-2 py-1 min-w-[48px] text-center">
               <p class="text-xs font-semibold text-gray-700">{{ formatTime(meal.logged_at) }}</p>
             </div>
             <div class="flex-1 min-w-0">
               <p class="text-sm font-medium text-gray-800 truncate">{{ meal.display_name }}</p>
-              <p class="text-xs text-gray-400 mt-0.5">{{ meal.quantity }} {{ meal.unit }}</p>
+              <p class="text-xs text-gray-400">{{ meal.quantity }} {{ meal.unit }}</p>
               <div class="flex gap-3 mt-1">
                 <span class="text-[11px] text-blue-600">P {{ meal.protein_g.toFixed(1) }}g</span>
                 <span class="text-[11px] text-amber-600">C {{ meal.carbs_g.toFixed(1) }}g</span>
                 <span class="text-[11px] text-rose-500">F {{ meal.fat_g.toFixed(1) }}g</span>
               </div>
             </div>
-            <div class="shrink-0 flex flex-col items-end gap-1.5">
-              <span class="text-sm font-bold text-gray-800">{{ meal.calories.toFixed(0) }} kcal</span>
-              <div class="flex gap-2">
-                <button @click="openEdit(meal)"
-                  class="text-xs text-blue-500 active:text-blue-700 font-medium">✏️</button>
-                <button @click="confirmDelete(meal)"
-                  class="text-gray-300 active:text-red-500 text-base leading-none">✕</button>
-              </div>
+            <div class="shrink-0 text-right">
+              <p class="text-sm font-bold text-gray-800">{{ meal.calories.toFixed(0) }}</p>
+              <p class="text-[10px] text-gray-400">kcal</p>
             </div>
           </li>
         </ul>
@@ -132,88 +126,6 @@
         + Add meal for {{ selectedDateLabel }}
       </RouterLink>
     </div>
-
-    <!-- ── EDIT MEAL SHEET ── -->
-    <Transition name="sheet">
-      <div v-if="editMeal" class="fixed inset-0 z-50 flex items-end justify-center">
-        <div class="absolute inset-0 bg-black/40" @click="editMeal = null" />
-        <div class="relative bg-white rounded-t-2xl p-5 w-full max-w-md mx-auto space-y-4">
-          <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto" />
-          <h3 class="font-semibold text-gray-900">Edit meal</h3>
-          <p class="text-sm text-gray-500 truncate">{{ editMeal.display_name }}</p>
-
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1">
-                Quantity ({{ editMeal.unit }})
-              </label>
-              <input v-model.number="editForm.quantity" type="number" step="0.1" min="0.1"
-                class="input-field text-center font-semibold" />
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-gray-500 mb-1">Time</label>
-              <input v-model="editForm.time" type="time" class="input-field" />
-            </div>
-          </div>
-
-          <div>
-            <label class="block text-xs font-medium text-gray-500 mb-1">Note</label>
-            <input v-model="editForm.note" type="text" class="input-field text-sm"
-              placeholder="Optional note" />
-          </div>
-
-          <!-- Live macro preview -->
-          <div class="bg-gray-50 rounded-xl p-3 grid grid-cols-4 gap-2 text-center">
-            <div>
-              <p class="text-sm font-bold text-gray-800">{{ editPreview.calories.toFixed(0) }}</p>
-              <p class="text-[10px] text-gray-400">kcal</p>
-            </div>
-            <div>
-              <p class="text-sm font-bold text-blue-700">{{ editPreview.protein.toFixed(1) }}g</p>
-              <p class="text-[10px] text-gray-400">prot</p>
-            </div>
-            <div>
-              <p class="text-sm font-bold text-amber-600">{{ editPreview.carbs.toFixed(1) }}g</p>
-              <p class="text-[10px] text-gray-400">carbs</p>
-            </div>
-            <div>
-              <p class="text-sm font-bold text-rose-500">{{ editPreview.fat.toFixed(1) }}g</p>
-              <p class="text-[10px] text-gray-400">fat</p>
-            </div>
-          </div>
-
-          <p v-if="editError" class="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{{ editError }}</p>
-          <div class="flex gap-3">
-            <button @click="editMeal = null" class="btn-secondary">Cancel</button>
-            <button @click="saveEdit" class="btn-primary" :disabled="editSaving">
-              {{ editSaving ? 'Saving…' : 'Save' }}
-            </button>
-          </div>
-        </div>
-      </div>
-    </Transition>
-
-    <!-- ── DELETE CONFIRM SHEET ── -->
-    <Transition name="sheet">
-      <div v-if="toDelete" class="fixed inset-0 z-50 flex items-end justify-center">
-        <div class="absolute inset-0 bg-black/40" @click="toDelete = null" />
-        <div class="relative bg-white rounded-t-2xl p-5 w-full max-w-md mx-auto space-y-4">
-          <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto" />
-          <p class="font-semibold text-gray-900 text-center">Delete this entry?</p>
-          <p class="text-sm text-gray-500 text-center">
-            {{ toDelete.display_name }} · {{ toDelete.calories.toFixed(0) }} kcal
-          </p>
-          <div class="flex gap-3">
-            <button @click="toDelete = null" class="btn-secondary">Cancel</button>
-            <button @click="doDelete"
-              class="flex-1 py-3 px-4 bg-red-500 text-white font-medium rounded-xl active:bg-red-600"
-              :disabled="deleteLoading">
-              {{ deleteLoading ? 'Deleting…' : 'Delete' }}
-            </button>
-          </div>
-        </div>
-      </div>
-    </Transition>
 
     <!-- Monthly summary -->
     <div v-if="monthSummary.days > 0" class="card bg-gray-50 border-gray-100">
@@ -246,7 +158,7 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth'
@@ -411,83 +323,6 @@ async function selectDay(day) {
   loadingDay.value = false
 }
 
-// ── Edit meal ─────────────────────────────────────────────────────────────────
-const editMeal  = ref(null)
-const editForm  = reactive({ quantity: 0, time: '', note: '' })
-const editSaving = ref(false)
-const editError  = ref('')
-
-const editPreview = computed(() => {
-  if (!editMeal.value || !editForm.quantity) return { calories: 0, protein: 0, carbs: 0, fat: 0 }
-  const m = editMeal.value
-  const ratio = editForm.quantity / (m.quantity || 1)
-  return {
-    calories: (m.calories  ?? 0) * ratio,
-    protein:  (m.protein_g ?? 0) * ratio,
-    carbs:    (m.carbs_g   ?? 0) * ratio,
-    fat:      (m.fat_g     ?? 0) * ratio,
-  }
-})
-
-function openEdit(meal) {
-  editError.value = ''
-  const d = new Date(meal.logged_at)
-  editForm.quantity = meal.quantity
-  editForm.time = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
-  editForm.note = meal.note ?? ''
-  editMeal.value = meal
-}
-
-async function saveEdit() {
-  if (!editForm.quantity || editForm.quantity <= 0) { editError.value = 'Quantity must be > 0'; return }
-  editSaving.value = true; editError.value = ''
-
-  const m = editMeal.value
-  const ratio = editForm.quantity / (m.quantity || 1)
-  const [hh, mm] = editForm.time.split(':')
-  const loggedAt = new Date(m.logged_at)
-  loggedAt.setHours(parseInt(hh), parseInt(mm), 0, 0)
-
-  const { error } = await supabase.from('meal_log').update({
-    quantity:  editForm.quantity,
-    note:      editForm.note || null,
-    logged_at: loggedAt.toISOString(),
-    calories:  parseFloat((( m.calories  ?? 0) * ratio).toFixed(2)),
-    protein_g: parseFloat((( m.protein_g ?? 0) * ratio).toFixed(2)),
-    carbs_g:   parseFloat((( m.carbs_g   ?? 0) * ratio).toFixed(2)),
-    fat_g:     parseFloat((( m.fat_g     ?? 0) * ratio).toFixed(2)),
-  }).eq('id', m.id)
-
-  if (error) { editError.value = error.message }
-  else {
-    editMeal.value = null
-    loadMonth()
-    const key = dateKey(viewYear.value, viewMonth.value, selectedDay.value)
-    await new Promise(r => setTimeout(r, 300))
-    dayMeals.value = monthData.value[key] ?? []
-  }
-  editSaving.value = false
-}
-
-// ── Delete meal ───────────────────────────────────────────────────────────────
-const toDelete     = ref(null)
-const deleteLoading = ref(false)
-
-function confirmDelete(meal) { toDelete.value = meal }
-
-async function doDelete() {
-  deleteLoading.value = true
-  await supabase.from('meal_log').delete().eq('id', toDelete.value.id)
-  dayMeals.value = dayMeals.value.filter(m => m.id !== toDelete.value.id)
-  // Also remove from monthData cache so dot disappears if day is now empty
-  const key = dateKey(viewYear.value, viewMonth.value, selectedDay.value)
-  if (monthData.value[key]) {
-    monthData.value[key] = monthData.value[key].filter(m => m.id !== toDelete.value.id)
-  }
-  toDelete.value = null
-  deleteLoading.value = false
-}
-
 async function loadTargets() {
   const { data } = await supabase
     .from('user_targets')
@@ -517,8 +352,3 @@ onMounted(() => {
   }
 })
 </script>
-
-<style scoped>
-.sheet-enter-active, .sheet-leave-active { transition: opacity 0.2s ease; }
-.sheet-enter-from, .sheet-leave-to { opacity: 0; }
-</style>

@@ -84,7 +84,7 @@
     </div>
 
     <!-- ── BOTTOM ZONE: Add meal button (never scrolls) ── -->
-    <div class="shrink-0 px-4 pt-2 pb-3">
+    <div class="shrink-0 px-4 pt-2 pb-20">
       <RouterLink to="/add" class="btn-primary text-center block">
         + Add meal
       </RouterLink>
