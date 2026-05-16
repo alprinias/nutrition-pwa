@@ -41,8 +41,7 @@ const routes = [
       },
       {
         path: 'log',
-        name: 'MealLog',
-        component: () => import('@/views/MealLogView.vue'),
+        redirect: '/',
       },
       {
         path: 'add',

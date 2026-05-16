@@ -10,6 +10,7 @@
         </div>
         <div class="flex items-center gap-3">
           <RouterLink to="/foods"    class="text-sm text-gray-400 active:text-gray-600">🥗</RouterLink>
+          <RouterLink to="/history"  class="text-sm text-gray-400 active:text-gray-600">📅</RouterLink>
           <RouterLink to="/settings" class="text-sm text-gray-400 active:text-gray-600">⚙️</RouterLink>
           <button @click="handleLogout" class="text-sm text-gray-400 active:text-gray-600 transition-colors">
             Sign out
@@ -25,7 +26,7 @@
 
     <!-- Bottom navigation -->
     <nav class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white border-t border-gray-100
-                grid grid-cols-4 pb-safe z-10">
+                grid grid-cols-3 pb-safe z-10">
       <RouterLink
         v-for="tab in tabs"
         :key="tab.name"
@@ -56,10 +57,9 @@ const route = useRoute()
 const router = useRouter()
 
 const tabs = [
-  { name: 'Today',   to: '/',        icon: '📊', label: 'Today'   },
-  { name: 'History', to: '/history', icon: '📅', label: 'History' },
-  { name: 'Body',    to: '/body',    icon: '⚖️', label: 'Body'    },
-  { name: 'Charts',  to: '/charts',  icon: '📈', label: 'Charts'  },
+  { name: 'Today',   to: '/',       icon: '📊', label: 'Today'  },
+  { name: 'Body',    to: '/body',   icon: '⚖️', label: 'Body'   },
+  { name: 'Charts',  to: '/charts', icon: '📈', label: 'Charts' },
 ]
 
 const pageTitles = {

@@ -12,7 +12,7 @@ Live at: **https://nutrition-pwa-wheat.vercel.app**
 |---|---|
 | Frontend | Vue 3 + Vite |
 | Styling | Tailwind CSS v4 |
-| PWA | vite-plugin-pwa (autoUpdate) |
+| PWA | vite-plugin-pwa (autoUpdate, skipWaiting, clientsClaim) |
 | State | Pinia |
 | Router | Vue Router 4 |
 | Backend / DB | Supabase (Postgres + Auth + RLS) |
@@ -55,16 +55,18 @@ moderation_requests  id, user_id, entity_type, entity_id, status, note, admin_no
 ```
 meal_log          id, user_id, logged_at, recipe_id, ingredient_id, quantity, unit, note,
                   calories, protein_g, carbs_g, fat_g
-user_targets      id, user_id, target_kcal, carb_min_g, prot_min_pct, prot_max_pct,
-                  carb_min_pct, carb_max_pct, fat_min_pct, fat_max_pct, show_public_foods
+user_targets      id, user_id, target_kcal, prot_min_g, carb_min_g,
+                  prot_min_pct, prot_max_pct, carb_min_pct, carb_max_pct,
+                  fat_min_pct, fat_max_pct, show_public_foods
 body_measurements id, user_id, measured_at (date, unique per user), weight_kg, fat_pct, water_pct, note
 ```
 
 ### Key notes
 - `meal_log`: either `recipe_id` OR `ingredient_id` is set, not both. Macros snapshotted at log time.
-- `recipes.unit`: `'gr'` = log by grams (calories_per_unit = per 1g), `'pc'` = log by pieces (per 1 piece)
-- `recipes.servings`: for `pc` recipes equals total piece count (e.g. 16 for a 16-piece pie)
+- `recipes.unit`: `'gr'` = log by grams, `'pc'` = log by pieces
+- `recipes.servings`: for `pc` recipes equals total piece count
 - `user_targets`: auto-created with defaults on signup (trigger: `on_auth_user_created`)
+- `user_targets` defaults: target_kcal=1850, prot_min_g=120, carb_min_g=135
 - `app_config`: `admin_user_id` key holds admin UUID — set manually via SQL editor
 - `ingredients.owner_user_id`: all migrated rows set to admin UUID; new user items set to their UUID
 - `ingredients.is_public`: migrated rows = true; new user items = false (private by default)
@@ -90,6 +92,7 @@ migration_008_visibility.sql               — owner_user_id + is_public on ingr
                                              show_public_foods on user_targets
                                              moderation_requests table + RLS
                                              updated RLS policies for all food tables
+migration_009_prot_min_g.sql               — prot_min_g column on user_targets (default 120)
 ```
 
 ---
@@ -98,7 +101,7 @@ migration_008_visibility.sql               — owner_user_id + is_public on ingr
 ```
 nutrition-pwa/
 ├── index.html
-├── vite.config.js
+├── vite.config.js                    ← skipWaiting + clientsClaim for instant SW updates
 ├── .env                              ← not in git, contains Supabase keys
 ├── .env.example
 ├── .gitignore
@@ -120,9 +123,9 @@ nutrition-pwa/
     ├── composables/
     │   └── useUserPrefs.js           ← cached show_public_foods preference (module-level singleton)
     ├── router/
-    │   └── index.js                  ← routes + auth guards
+    │   └── index.js                  ← routes + auth guards; /log redirects to /
     ├── layouts/
-    │   └── AppShell.vue              ← header + bottom nav (5 tabs) + header icons
+    │   └── AppShell.vue              ← header + bottom nav (4 tabs) + header icons
     ├── components/
     │   └── MacroBar.vue              ← reusable progress bar for macros
     └── views/
@@ -131,22 +134,22 @@ nutrition-pwa/
         │   ├── RegisterView.vue        ← email + password + confirmation email flow
         │   ├── ForgotPasswordView.vue  ← sends reset email via Supabase
         │   └── ResetPasswordView.vue   ← lands from email link, sets new password
-        ├── TodayView.vue             ← daily summary, calorie ring, macro bars vs targets
-        ├── MealLogView.vue           ← today's meal list with delete confirmation
+        ├── TodayView.vue             ← three-zone layout: ring+bars | scrollable meals | add button
+        ├── MealLogView.vue           ← kept as file but /log redirects to /
         ├── AddMealView.vue           ← search + log meal (ingredient or recipe)
         ├── FoodsView.vue             ← paginated browser + full CRUD + visibility badges
         ├── BodyView.vue              ← log weight/fat/water with date picker + tap-to-edit history
         ├── ChartsView.vue            ← 7 timeline charts for nutrition + body metrics
         ├── HistoryView.vue           ← month calendar with green dots + day detail
-        ├── SettingsView.vue          ← macro targets, show_public_foods toggle, admin link
+        ├── SettingsView.vue          ← macro targets, prot_min_g, show_public_foods, admin link
         └── AdminView.vue             ← moderation queue: approve/reject submissions
 ```
 
 ---
 
 ## Navigation structure
-**Bottom nav (5 tabs):** Today · Log · Add · Body · Charts
-**Header icons:** 🥗 Foods · 📅 History · ⚙️ Settings · Sign out
+**Bottom nav (4 tabs):** Today · History · Body · Charts
+**Header icons:** 🥗 Foods · ⚙️ Settings · Sign out
 
 ---
 
@@ -154,26 +157,53 @@ nutrition-pwa/
 
 | Screen | Route | Key features |
 |---|---|---|
-| Today | `/` | Calorie ring, macro pills, macro bars vs targets, today's meal list |
-| Meal Log | `/log` | Full today list, running totals, delete with confirmation |
+| Today | `/` | Three-zone: calorie ring+bars (fixed) / full meal list with delete (scrollable) / Add meal button (fixed) |
 | Add Meal | `/add` | Search (All/Ingredients/Recipes), bottom sheet with qty + time, live macro preview |
+| History | `/history` | Month calendar with green dots, tap day → macro summary + meal list |
 | Body | `/body` | Date picker for any past date, weight/fat/water inputs, tap-to-edit history |
 | Charts | `/charts` | Date range + Day/Week/Month granularity; 7 line charts with target lines |
 | Foods | `/foods` | Paginated list, category filters, visibility badges, CRUD, submit for review |
-| History | `/history` | Month calendar with green dots, tap day → macro summary + meal list |
-| Settings | `/settings` | Macro targets, show_public_foods toggle, admin link (admin only) |
+| Settings | `/settings` | Macro targets, prot_min_g, show_public_foods toggle, admin link (admin only) |
 | Admin | `/admin` | Moderation queue: pending submissions, approve/reject with optional note |
 | Forgot password | `/forgot-password` | Sends Supabase reset email |
 | Reset password | `/reset-password` | Token from email link → set new password → sign out |
 
 ---
 
+## TodayView layout (three-zone)
+```
+┌─────────────────────────────┐  ← AppShell sticky header
+│  Calorie ring + macro bars  │  ← shrink-0, never scrolls
+├─────────────────────────────┤
+│                             │
+│   Meal list (scrollable)    │  ← flex-1 overflow-y-auto min-h-0
+│                             │
+├─────────────────────────────┤
+│     + Add meal button       │  ← shrink-0, never scrolls
+└─────────────────────────────┘  ← AppShell fixed bottom nav
+```
+- AppShell `<main>` uses `overflow-hidden flex flex-col` on Today route (not `overflow-y-auto`)
+- `min-h-0` on middle zone is critical — prevents flex items from overflowing in some browsers
+- Meal list shows: time badge, name, quantity+unit, P/C/F macros, kcal, delete (✕) button
+- Delete opens a confirmation bottom sheet
+- Macro totals (P/C/F) shown inline in the meals header
+
+---
+
+## Targets system
+- `target_kcal`: daily calorie target (default 1850)
+- `prot_min_g`: minimum daily protein in grams (default 120) — used as protein bar max in Today/History/Charts
+- `carb_min_g`: minimum daily carbs in grams (default 135)
+- Protein bar uses `prot_min_g` directly (not percentage-derived)
+- Carbs/Fat bars use percentage × target_kcal / caloric density
+
+---
+
 ## Admin system
 - Admin identified by matching `auth.users.id` to `app_config` where `key = 'admin_user_id'`
 - Stored in `useAdminStore` (Pinia) — loaded once per session
-- `isAdmin` computed: `loaded && currentUserId === adminUserId`
 - To change admin: update `app_config` row via Supabase SQL editor
-- Admin sees in Foods: ＋ button, ✏️ Edit + 🗑️ Delete on all items (public and private)
+- Admin sees in Foods: ＋ button, ✏️ Edit + 🗑️ Delete on all items
 - Admin link appears in Settings only when `isAdmin = true`
 
 ---
@@ -186,68 +216,54 @@ nutrition-pwa/
 | Regular user — show public OFF | Own private only | Own private only | Own private only | Own private only | — |
 | Admin | Everything | ✅ | Everything | — | — |
 
-### Visibility rules
-- New items created by users: `is_public = false`, `owner_user_id = user UUID` (always private initially)
-- Items are promoted to public (`is_public = true`) only by admin via approval
-- Once public, owner **cannot edit** — the detail sheet shows "📋 Create private copy" instead
-- Clone creates a new private copy with " (copy)" appended to the name
-- RLS enforces: SELECT (public OR own), INSERT (own + private only), UPDATE/DELETE (own private OR admin)
-
 ### Moderation flow
-1. Owner taps "📤 Submit for review" on a private item → optional note → inserts `moderation_requests` row
-2. Detail sheet shows "⏳ Pending review" badge while status = 'pending'
-3. Admin opens Settings → Admin moderation queue → sees item macros + submitter note
-4. Approve → sets `is_public = true`, status = 'approved'
-5. Reject → status = 'rejected', admin_note stored; owner can resubmit after editing
+1. Owner taps "📤 Submit for review" → optional note → inserts `moderation_requests` row
+2. Detail sheet shows "⏳ Pending review" while status = 'pending'
+3. Admin opens Settings → Admin → sees item macros + submitter note
+4. Approve → sets `is_public = true`, status = 'approved' (item locked — owner can no longer edit)
+5. Reject → status = 'rejected', admin_note stored; owner can edit and resubmit
+6. If owner taps Edit on a locked public item → "📋 Create private copy" offered instead
 
 ---
 
 ## Key behaviours & decisions
 
 ### Add Meal screen
-- Ingredients: macros shown per `ref_quantity`. Quantity defaults to `ref_quantity`.
-- Recipes (gr): quantity defaults to `total_weight_g`, macros scale as `calories_per_unit × qty`
-- Recipes (pc): quantity defaults to `servings` (total pieces), macros scale as `calories_per_unit × qty`
-- Macros snapshotted at log time — edits to ingredients don't affect history
-- Time input uses `setHours` (local) not `setUTCHours` — critical for Greek timezone
-- Respects `show_public_foods` preference — filters search results accordingly
+- Respects `show_public_foods` preference in search results
+- Ingredients: quantity defaults to `ref_quantity`
+- Recipes (gr): quantity defaults to `total_weight_g`
+- Recipes (pc): quantity defaults to `servings` (total pieces)
+- Macros snapshotted at log time
 
-### Foods CRUD (admin + item owner for private items)
-- Ingredient form: name, category (datalist autocomplete), unit, ref_quantity, all macros
-- Recipe form: name, unit (gr/pc), total weight/pieces, ingredient lines with live search
-- Live macro preview updates as ingredient lines are added
-- On recipe save: recomputes all `*_total` and `*_per_unit` columns from ingredient lines
+### Foods CRUD
+- New items: always `is_public = false`, `owner_user_id = current user`
+- Recipe save recomputes all `*_total` and `*_per_unit` columns
 - Delete blocked by Postgres FK if item referenced in meal_log or recipe_items
 
 ### Charts
 - Y axis: min = max(0, dataMin − 10% of spread), max = dataMax + 10% of spread
-- Target line shown as dashed line labelled "T"
-- Body charts only appear if body data exists in selected date range
-- Week aggregation uses ISO week numbers; Month uses YYYY-MM
-- Dots shown on points only when ≤ 30 points
+- Target line shown as dashed "T"
+- Week: ISO week numbers; Month: YYYY-MM
+- Body charts only appear if body data exists in selected range
 
 ### Body measurements
-- One entry per user per date (unique constraint: `user_id, measured_at`)
-- Upsert on save — same date = update existing
-- Tap any history row to jump to that date and edit
-- Paginated at 20 entries with Load more
+- Unique per user per date; upsert on save
+- Tap history row to edit that date
 
 ### Date & time display
-- Times: `toLocaleTimeString('el-GR', { hour: '2-digit', minute: '2-digit', hour12: false })` → 24hr
-- Specific dates: `toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit', year: 'numeric' })` → dd/mm/yyyy
-- Month headers (History): `{ month: 'long', year: 'numeric' }` → "Μάιος 2026" (kept as natural Greek)
-- App header label: `{ weekday: 'long', day: 'numeric', month: 'long' }` → "Σάββατο 16 Μαΐου" (kept)
+- Times: 24hr `hour12: false`
+- Dates: `dd/mm/yyyy` via `{ day: '2-digit', month: '2-digit', year: 'numeric' }`
+- Month headers: `{ month: 'long', year: 'numeric' }` → "Μάιος 2026"
+- App header: `{ weekday: 'long', day: 'numeric', month: 'long' }`
 
-### Password reset flow
-1. `/forgot-password` → `supabase.auth.resetPasswordForEmail()` with redirectTo `/reset-password`
-2. Email link → `/reset-password` → token in URL hash → `supabase.auth.updateUser({ password })`
-3. On success: signs out → redirects to login
+### PWA updates
+- `skipWaiting: true` + `clientsClaim: true` in workbox config
+- New deployments activate immediately without requiring app restart
 
-### useUserPrefs composable
-- Module-level singleton (`ref` outside function) — shared across all views
-- Loads `show_public_foods` once from `user_targets` after login
-- `setShowPublicFoods(val)` updates both local ref and DB immediately
-- Used in: `FoodsView`, `AddMealView`, `SettingsView`
+### Password reset
+1. `/forgot-password` → `resetPasswordForEmail()` with redirectTo `/reset-password`
+2. Token in URL hash → `updateUser({ password })`
+3. On success: sign out → login
 
 ---
 
@@ -258,7 +274,7 @@ nutrition-pwa/
 3. If DB change needed: run SQL in Supabase first
 4. git add . && git commit -m "description" && git push
 5. Vercel auto-deploys in ~30-60 seconds
-6. Users get update on next app open (service worker autoUpdate)
+6. Users get update immediately (skipWaiting + clientsClaim)
 ```
 
 ---
@@ -280,7 +296,6 @@ nutrition-pwa/
 - Edit a logged meal (currently only delete)
 - Export daily summary as CSV or PDF
 - Multi-day meal planning
-- Week/month comparison on History screen
 - Change password from Settings (currently only via forgot password flow)
 - Show user email in Admin moderation queue (requires Supabase admin API or profiles table)
 - Push notifications for meal reminders

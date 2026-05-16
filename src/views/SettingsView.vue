@@ -36,16 +36,28 @@
         />
       </div>
 
-      <!-- Minimum carbs -->
-      <div>
-        <label class="block text-xs font-medium text-gray-500 mb-1">Minimum carbs (g/day)</label>
-        <input
-          v-model.number="form.carb_min_g"
-          type="number"
-          min="0" max="500" step="5"
-          class="input-field"
-          :disabled="!editing"
-        />
+      <!-- Minimum targets -->
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1">Min protein (g/day)</label>
+          <input
+            v-model.number="form.prot_min_g"
+            type="number"
+            min="0" max="300" step="5"
+            class="input-field"
+            :disabled="!editing"
+          />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1">Min carbs (g/day)</label>
+          <input
+            v-model.number="form.carb_min_g"
+            type="number"
+            min="0" max="500" step="5"
+            class="input-field"
+            :disabled="!editing"
+          />
+        </div>
       </div>
 
       <div class="border-t border-gray-100 pt-3 space-y-3">
@@ -244,7 +256,8 @@ const errorMsg = ref('')
 const successMsg = ref('')
 
 const defaults = {
-  target_kcal:  2000,
+  target_kcal:  1850,
+  prot_min_g:   120,
   carb_min_g:   135,
   prot_min_pct: 25,
   prot_max_pct: 35,
@@ -291,6 +304,7 @@ async function save() {
       user_id:      auth.user.id,
       target_kcal:  form.target_kcal,
       carb_min_g:   form.carb_min_g,
+      prot_min_g:   form.prot_min_g,
       prot_min_pct: form.prot_min_pct,
       prot_max_pct: form.prot_max_pct,
       carb_min_pct: form.carb_min_pct,

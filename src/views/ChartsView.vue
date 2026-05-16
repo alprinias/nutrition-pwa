@@ -276,8 +276,8 @@ const rawDaily = ref([]) // [{ date, calories, protein, carbs, fat }]
 const rawBody  = ref([]) // [{ measured_at, weight_kg, fat_pct, water_pct }]
 
 const targets = ref({
-  target_kcal: 2000,
-  prot_max_g: 175,
+  target_kcal: 1850,
+  prot_max_g: 120,
   carb_max_g: 250,
   fat_max_g:  78,
 })
@@ -334,14 +334,14 @@ async function loadData() {
 async function loadTargets() {
   const { data } = await supabase
     .from('user_targets')
-    .select('target_kcal, prot_max_pct, carb_max_pct, fat_max_pct')
+    .select('target_kcal, prot_min_g, carb_max_pct, fat_max_pct')
     .eq('user_id', auth.user.id)
     .maybeSingle()
 
   if (data) {
     targets.value = {
-      target_kcal: data.target_kcal ?? 2000,
-      prot_max_g:  Math.round((data.target_kcal * data.prot_max_pct / 100) / 4),
+      target_kcal: data.target_kcal ?? 1850,
+      prot_max_g:  data.prot_min_g ?? 120,
       carb_max_g:  Math.round((data.target_kcal * data.carb_max_pct / 100) / 4),
       fat_max_g:   Math.round((data.target_kcal * data.fat_max_pct  / 100) / 9),
     }

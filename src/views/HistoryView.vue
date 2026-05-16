@@ -171,10 +171,10 @@ const loadingDay  = ref(false)
 const monthData = ref({}) // { 'YYYY-MM-DD': [meals] }
 
 const targets = ref({
-  prot_max_g: 160,
+  prot_max_g: 120,
   carb_max_g: 250,
   fat_max_g:  80,
-  target_kcal: 2000,
+  target_kcal: 1850,
 })
 
 // ── computed ──────────────────────────────────────────────────────────────────
@@ -313,14 +313,14 @@ async function selectDay(day) {
 async function loadTargets() {
   const { data } = await supabase
     .from('user_targets')
-    .select('target_kcal, prot_max_pct, carb_max_pct, fat_max_pct')
+    .select('target_kcal, prot_min_g, carb_max_pct, fat_max_pct')
     .eq('user_id', auth.user.id)
     .maybeSingle()
 
   if (data) {
     targets.value = {
-      target_kcal: data.target_kcal ?? 2000,
-      prot_max_g: Math.round((data.target_kcal * data.prot_max_pct / 100) / 4),
+      target_kcal: data.target_kcal ?? 1850,
+      prot_max_g: data.prot_min_g ?? 120,
       carb_max_g: Math.round((data.target_kcal * data.carb_max_pct / 100) / 4),
       fat_max_g:  Math.round((data.target_kcal * data.fat_max_pct  / 100) / 9),
     }
