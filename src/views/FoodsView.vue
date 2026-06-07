@@ -394,6 +394,9 @@ const auth  = useAuthStore()
 const admin = useAdminStore()
 const prefs = useUserPrefs()
 
+// Normalize query for accent-insensitive search (mirrors DB normalize_text function)
+const normalize = t => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+
 const PAGE_SIZE = 30
 const query = ref('')
 const activeTab = ref('ingredient')
@@ -442,7 +445,7 @@ async function fetchItems(reset = true) {
     let qb = supabase.from('ingredients')
       .select('id, name, category, unit, ref_quantity, calories, protein_g, carbs_g, fat_g, is_public, owner_user_id')
       .order('name').range(offset.value, offset.value + PAGE_SIZE - 1)
-    if (q) qb = qb.ilike('name', `%${q}%`)
+    if (q) qb = qb.filter('normalize_text(name)', 'ilike', `%${normalize(q)}%`)
     if (activeCategory.value) qb = qb.eq('category', activeCategory.value)
     // RLS already filters; if user doesn't want public, add extra filter
     if (!showPublic && !admin.isAdmin) qb = qb.eq('owner_user_id', auth.user.id)
@@ -451,7 +454,7 @@ async function fetchItems(reset = true) {
     let qb = supabase.from('recipes')
       .select('id, name, unit, total_weight_g, servings, calories_total, protein_total, carbs_total, fat_total, calories_per_unit, protein_per_unit, carbs_per_unit, fat_per_unit, is_public, owner_user_id')
       .order('name').range(offset.value, offset.value + PAGE_SIZE - 1)
-    if (q) qb = qb.ilike('name', `%${q}%`)
+    if (q) qb = qb.filter('normalize_text(name)', 'ilike', `%${normalize(q)}%`)
     if (!showPublic && !admin.isAdmin) qb = qb.eq('owner_user_id', auth.user.id)
     const res = await qb; data = res.data ?? []
   }
@@ -486,7 +489,8 @@ async function select(item) {
   if (activeTab.value === 'recipe') {
     loadingIngredients.value = true
     const { data } = await supabase.from('recipe_items')
-      .select('id, quantity, unit, ingredients ( name )').eq('recipe_id', item.id).order('id')
+      .select('id, quantity, unit, ingredients ( id, name, unit, ref_quantity, calories, protein_g, carbs_g, fat_g )')
+      .eq('recipe_id', item.id).order('id')
     recipeIngredients.value = data ?? []
     loadingIngredients.value = false
   }
@@ -572,7 +576,7 @@ async function searchIngredient(line) {
   ingSearchTimers[line] = setTimeout(async () => {
     const { data } = await supabase.from('ingredients')
       .select('id, name, unit, ref_quantity, calories, protein_g, carbs_g, fat_g')
-      .ilike('name', `%${q}%`).limit(8)
+      .filter('normalize_text(name)', 'ilike', `%${normalize(q)}%`).limit(8)
     line.suggestions = data ?? []
   }, 250)
 }

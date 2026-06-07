@@ -507,9 +507,9 @@ async function loadTargets() {
 
 watch([viewYear, viewMonth], loadMonth)
 
-onMounted(() => {
+onMounted(async () => {
   loadTargets()
-  loadMonth()
+  await loadMonth()
   // Auto-select today if viewing current month
   const now = new Date()
   if (viewYear.value === now.getFullYear() && viewMonth.value === now.getMonth()) {

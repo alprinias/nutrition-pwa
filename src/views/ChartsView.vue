@@ -182,11 +182,18 @@ const LineChart = defineComponent({
         ` L${toX(vals.length - 1).toFixed(1)},${(PAD.t + IH).toFixed(1)}` +
         ` L${toX(0).toFixed(1)},${(PAD.t + IH).toFixed(1)} Z`
 
-      // Y-axis ticks
-      const yTicks = [0, 0.25, 0.5, 0.75, 1].map(f => ({
-        val: Math.round(minVal + f * (maxVal - minVal)),
-        y:   toY(minVal + f * (maxVal - minVal)),
-      }))
+      // Y-axis ticks — compute a nice step size so ticks are never duplicated
+      const rawRange = maxVal - minVal
+      // Pick a step that gives 4-5 ticks and is a "round" number
+      const roughStep = rawRange / 4
+      const magnitude = Math.pow(10, Math.floor(Math.log10(roughStep || 1)))
+      const niceStep  = Math.max(1, Math.ceil(roughStep / magnitude) * magnitude)
+      const tickStart = Math.ceil(minVal / niceStep) * niceStep
+      const yTicks = []
+      for (let v = tickStart; v <= maxVal + niceStep * 0.01; v += niceStep) {
+        yTicks.push({ val: Math.round(v), y: toY(v) })
+        if (yTicks.length >= 6) break
+      }
 
       // X-axis labels — show at most 6, evenly spaced
       const step = Math.ceil(vals.length / 6)
