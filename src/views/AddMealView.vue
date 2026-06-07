@@ -232,31 +232,25 @@ async function doSearch() {
   loading.value = true
   results.value = []
   const q = query.value.trim()
-  const nq = normalize(q)
   const promises = []
 
   if (activeTab.value !== 'recipe') {
-    let qb = supabase
-      .from('ingredients')
+    let qb = supabase.rpc('search_ingredients', { q })
       .select('id, name, category, unit, ref_quantity, calories, protein_g, carbs_g, fat_g')
-      .filter('normalize_text(name)', 'ilike', `%${nq}%`)
-      .limit(30)
     if (!prefs.showPublicFoods.value) qb = qb.eq('owner_user_id', auth.user.id)
     promises.push(qb.then(({ data }) => (data ?? []).map(r => ({ ...r, type: 'ingredient' }))))
   }
 
   if (activeTab.value !== 'ingredient') {
-    let qb = supabase
-      .from('recipes')
+    let qb = supabase.rpc('search_recipes', { q })
       .select('id, name, total_weight_g, servings, unit, calories_total, protein_total, carbs_total, fat_total, calories_per_unit, protein_per_unit, carbs_per_unit, fat_per_unit')
-      .filter('normalize_text(name)', 'ilike', `%${nq}%`)
-      .limit(20)
     if (!prefs.showPublicFoods.value) qb = qb.eq('owner_user_id', auth.user.id)
     promises.push(qb.then(({ data }) => (data ?? []).map(r => ({ ...r, type: 'recipe' }))))
   }
 
   const all = (await Promise.all(promises)).flat()
   all.sort((a, b) => {
+    const nq = normalize(q)
     const aq = normalize(a.name).startsWith(nq) ? 0 : 1
     const bq = normalize(b.name).startsWith(nq) ? 0 : 1
     return aq - bq || a.name.localeCompare(b.name, 'el')

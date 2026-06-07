@@ -442,24 +442,29 @@ async function fetchItems(reset = true) {
   let data = []
 
   if (activeTab.value === 'ingredient') {
-    let qb = supabase.from('ingredients')
-      .select('id, name, category, unit, ref_quantity, calories, protein_g, carbs_g, fat_g, is_public, owner_user_id')
-      .order('name').range(offset.value, offset.value + PAGE_SIZE - 1)
-    if (q) qb = qb.filter('normalize_text(name)', 'ilike', `%${normalize(q)}%`)
+    let qb = q
+      ? supabase.rpc('search_ingredients', { q })
+          .select('id, name, category, unit, ref_quantity, calories, protein_g, carbs_g, fat_g, is_public, owner_user_id')
+      : supabase.from('ingredients')
+          .select('id, name, category, unit, ref_quantity, calories, protein_g, carbs_g, fat_g, is_public, owner_user_id')
+          .order('name')
     if (activeCategory.value) qb = qb.eq('category', activeCategory.value)
-    // RLS already filters; if user doesn't want public, add extra filter
     if (!showPublic && !admin.isAdmin) qb = qb.eq('owner_user_id', auth.user.id)
+    if (!q) qb = qb.range(offset.value, offset.value + PAGE_SIZE - 1)
     const res = await qb; data = res.data ?? []
   } else {
-    let qb = supabase.from('recipes')
-      .select('id, name, unit, total_weight_g, servings, calories_total, protein_total, carbs_total, fat_total, calories_per_unit, protein_per_unit, carbs_per_unit, fat_per_unit, is_public, owner_user_id')
-      .order('name').range(offset.value, offset.value + PAGE_SIZE - 1)
-    if (q) qb = qb.filter('normalize_text(name)', 'ilike', `%${normalize(q)}%`)
+    let qb = q
+      ? supabase.rpc('search_recipes', { q })
+          .select('id, name, unit, total_weight_g, servings, calories_total, protein_total, carbs_total, fat_total, calories_per_unit, protein_per_unit, carbs_per_unit, fat_per_unit, is_public, owner_user_id')
+      : supabase.from('recipes')
+          .select('id, name, unit, total_weight_g, servings, calories_total, protein_total, carbs_total, fat_total, calories_per_unit, protein_per_unit, carbs_per_unit, fat_per_unit, is_public, owner_user_id')
+          .order('name')
     if (!showPublic && !admin.isAdmin) qb = qb.eq('owner_user_id', auth.user.id)
+    if (!q) qb = qb.range(offset.value, offset.value + PAGE_SIZE - 1)
     const res = await qb; data = res.data ?? []
   }
 
-  hasMore.value = data.length === PAGE_SIZE
+  hasMore.value = !q && data.length === PAGE_SIZE
   offset.value += data.length
   items.value = reset ? data : [...items.value, ...data]
   loading.value = false; loadingMore.value = false
@@ -574,9 +579,9 @@ async function searchIngredient(line) {
   const q = line.search.trim(); if (q.length < 2) { line.suggestions = []; return }
   clearTimeout(ingSearchTimers[line])
   ingSearchTimers[line] = setTimeout(async () => {
-    const { data } = await supabase.from('ingredients')
+    const { data } = await supabase.rpc('search_ingredients', { q })
       .select('id, name, unit, ref_quantity, calories, protein_g, carbs_g, fat_g')
-      .filter('normalize_text(name)', 'ilike', `%${normalize(q)}%`).limit(8)
+      .limit(8)
     line.suggestions = data ?? []
   }, 250)
 }
