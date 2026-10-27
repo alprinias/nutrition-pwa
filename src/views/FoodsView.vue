@@ -450,7 +450,7 @@ async function fetchItems(reset = true) {
           .order('name')
     if (activeCategory.value) qb = qb.eq('category', activeCategory.value)
     if (!showPublic && !admin.isAdmin) qb = qb.eq('owner_user_id', auth.user.id)
-    if (!q) qb = qb.range(offset.value, offset.value + PAGE_SIZE - 1)
+    qb = q ? qb.limit(50) : qb.range(offset.value, offset.value + PAGE_SIZE - 1)
     const res = await qb; data = res.data ?? []
   } else {
     let qb = q
@@ -460,7 +460,7 @@ async function fetchItems(reset = true) {
           .select('id, name, unit, total_weight_g, servings, calories_total, protein_total, carbs_total, fat_total, calories_per_unit, protein_per_unit, carbs_per_unit, fat_per_unit, is_public, owner_user_id')
           .order('name')
     if (!showPublic && !admin.isAdmin) qb = qb.eq('owner_user_id', auth.user.id)
-    if (!q) qb = qb.range(offset.value, offset.value + PAGE_SIZE - 1)
+    qb = q ? qb.limit(50) : qb.range(offset.value, offset.value + PAGE_SIZE - 1)
     const res = await qb; data = res.data ?? []
   }
 

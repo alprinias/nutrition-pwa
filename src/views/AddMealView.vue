@@ -238,14 +238,14 @@ async function doSearch() {
     let qb = supabase.rpc('search_ingredients', { q })
       .select('id, name, category, unit, ref_quantity, calories, protein_g, carbs_g, fat_g')
     if (!prefs.showPublicFoods.value) qb = qb.eq('owner_user_id', auth.user.id)
-    promises.push(qb.then(({ data }) => (data ?? []).map(r => ({ ...r, type: 'ingredient' }))))
+    promises.push(qb.limit(50).then(({ data }) => (data ?? []).map(r => ({ ...r, type: 'ingredient' }))))
   }
 
   if (activeTab.value !== 'ingredient') {
     let qb = supabase.rpc('search_recipes', { q })
       .select('id, name, total_weight_g, servings, unit, calories_total, protein_total, carbs_total, fat_total, calories_per_unit, protein_per_unit, carbs_per_unit, fat_per_unit')
     if (!prefs.showPublicFoods.value) qb = qb.eq('owner_user_id', auth.user.id)
-    promises.push(qb.then(({ data }) => (data ?? []).map(r => ({ ...r, type: 'recipe' }))))
+    promises.push(qb.limit(30).then(({ data }) => (data ?? []).map(r => ({ ...r, type: 'recipe' }))))
   }
 
   const all = (await Promise.all(promises)).flat()
