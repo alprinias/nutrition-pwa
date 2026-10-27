@@ -249,6 +249,7 @@
 import { ref, computed, reactive, onMounted, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { supabase } from '@/lib/supabase'
+import { localDateKey } from '@/lib/dates'
 import { useAuthStore } from '@/stores/auth'
 import MacroBar from '@/components/MacroBar.vue'
 
@@ -393,7 +394,7 @@ async function loadMonth() {
 
   const grouped = {}
   ;(data ?? []).forEach(m => {
-    const key = m.logged_at.slice(0, 10)
+    const key = localDateKey(m.logged_at)
     if (!grouped[key]) grouped[key] = []
     grouped[key].push({
       ...m,

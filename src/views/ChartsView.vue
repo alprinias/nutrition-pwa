@@ -138,6 +138,7 @@
 <script setup>
 import { ref, computed, onMounted, defineComponent, h } from 'vue'
 import { supabase } from '@/lib/supabase'
+import { localDateKey } from '@/lib/dates'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
@@ -268,11 +269,11 @@ const granularities = [
   { key: 'month', label: 'Month' },
 ]
 
-const today = new Date().toISOString().slice(0, 10)
+const today = localDateKey()
 
 // Default: last 30 days
 const dateFrom = ref((() => {
-  const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().slice(0, 10)
+  const d = new Date(); d.setDate(d.getDate() - 30); return localDateKey(d)
 })())
 const dateTo   = ref(today)
 const granularity = ref('day')
@@ -299,14 +300,28 @@ async function loadData() {
   const start = new Date(dateFrom.value + 'T00:00:00')
   const end   = new Date(dateTo.value   + 'T23:59:59')
 
+  // Supabase caps responses at 1000 rows, so page through meal_log
+  async function fetchAllMeals() {
+    const PAGE = 1000
+    const rows = []
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await supabase
+        .from('meal_log')
+        .select('logged_at, calories, protein_g, carbs_g, fat_g')
+        .eq('user_id', auth.user.id)
+        .gte('logged_at', start.toISOString())
+        .lte('logged_at', end.toISOString())
+        .order('logged_at', { ascending: true })
+        .order('id', { ascending: true })
+        .range(from, from + PAGE - 1)
+      if (error) return { data: rows, error }
+      rows.push(...data)
+      if (data.length < PAGE) return { data: rows }
+    }
+  }
+
   const [mealsRes, bodyRes] = await Promise.all([
-    supabase
-      .from('meal_log')
-      .select('logged_at, calories, protein_g, carbs_g, fat_g')
-      .eq('user_id', auth.user.id)
-      .gte('logged_at', start.toISOString())
-      .lte('logged_at', end.toISOString())
-      .order('logged_at', { ascending: true }),
+    fetchAllMeals(),
     supabase
       .from('body_measurements')
       .select('measured_at, weight_kg, fat_pct, water_pct')
@@ -319,7 +334,7 @@ async function loadData() {
   // Group meals into daily buckets
   const dayMap = {}
   ;(mealsRes.data ?? []).forEach(m => {
-    const key = m.logged_at.slice(0, 10)
+    const key = localDateKey(m.logged_at)
     if (!dayMap[key]) dayMap[key] = { date: key, calories: 0, protein: 0, carbs: 0, fat: 0 }
     dayMap[key].calories += m.calories  ?? 0
     dayMap[key].protein  += m.protein_g ?? 0

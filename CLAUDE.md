@@ -19,6 +19,9 @@ for the schema, screens, and behaviour spec — keep it up to date when behaviou
 ## Conventions
 - UI language is Greek; locale `el-GR`. Dates `dd/mm/yyyy`, times 24h (`hour12: false`).
 - Timestamps are stored as UTC. User-entered times are built with local `setHours()` then `toISOString()`.
+- Day keys (`YYYY-MM-DD`) are always local: use `localDateKey()` from `src/lib/dates.js`,
+  never `toISOString().slice(0, 10)` or `logged_at.slice(0, 10)` (those give the UTC date).
+- Supabase returns at most 1000 rows per request; queries spanning long ranges must page with `.range()`.
 - `meal_log` rows snapshot macros at log time; either `recipe_id` or `ingredient_id` is set, never both.
 - kcal per gram: protein 4, carbs 4, fat 9.
 - Views use `<script setup>` and Tailwind utility classes inline; `@` aliases `src/`.

@@ -125,7 +125,7 @@
           </div>
 
           <!-- Date indicator (shown when logging for a past date) -->
-          <div v-if="logDate !== new Date().toISOString().slice(0,10)"
+          <div v-if="logDate !== localDateKey()"
             class="bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 text-xs text-amber-700 font-medium">
             📅 Logging for {{ new Date(logDate + 'T12:00:00').toLocaleDateString('el-GR', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }) }}
           </div>
@@ -184,6 +184,7 @@
 import { ref, computed, nextTick, watch, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { supabase } from '@/lib/supabase'
+import { localDateKey } from '@/lib/dates'
 import { useAuthStore } from '@/stores/auth'
 import { useUserPrefs } from '@/composables/useUserPrefs'
 
@@ -192,7 +193,7 @@ const router = useRouter()
 const route  = useRoute()
 
 // Support pre-filled date from History screen (?date=YYYY-MM-DD)
-const logDate = computed(() => route.query.date || new Date().toISOString().slice(0, 10))
+const logDate = computed(() => route.query.date || localDateKey())
 const prefs = useUserPrefs()
 
 const normalize = t => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()

@@ -122,11 +122,12 @@
 <script setup>
 import { ref, computed, reactive, onMounted } from 'vue'
 import { supabase } from '@/lib/supabase'
+import { localDateKey } from '@/lib/dates'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
 
-const today = new Date().toISOString().slice(0, 10)
+const today = localDateKey()
 const selectedDate = ref(today)
 
 const form = reactive({ weight_kg: null, fat_pct: null, water_pct: null, note: '' })
