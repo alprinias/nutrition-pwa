@@ -13,8 +13,8 @@ for the schema, screens, and behaviour spec — keep it up to date when behaviou
   Any new table needs RLS policies.
 - Schema changes are run by hand in the Supabase SQL editor. Add each one as a numbered
   `supabase/migration_NNN_*.sql` file.
-- **Known gap:** migrations 004b, 007, 008, 009 and the `search_ingredients` / `search_recipes`
-  RPC functions (accent-insensitive search) exist in the live database but not in this repo.
+- Migrations 004b and 007–009 were never committed; `migration_010_recovered_snapshot.sql` records
+  their end state (exported from the live DB, PKs/FKs inferred). Don't re-run it.
 
 ## Conventions
 - UI language is Greek; locale `el-GR`. Dates `dd/mm/yyyy`, times 24h (`hour12: false`).

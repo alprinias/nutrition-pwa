@@ -4,12 +4,70 @@
 -- Migrations 004b, 007, 008, 009 and the accent-insensitive search
 -- functions were run in the Supabase SQL editor but never committed.
 -- This file records the functions and RLS policies as they existed in the
--- live database on 2026-10-28, exported via pg_get_functiondef / pg_policies.
+-- live database on 2026-10-28, exported via pg_get_functiondef / pg_policies /
+-- information_schema.columns.
 --
--- NOT recovered yet: the column/table DDL from those migrations
--- (app_config, moderation_requests, owner_user_id / is_public,
--- show_public_foods, prot_min_g).
+-- Columns and defaults are exact. Primary keys, foreign keys and indexes
+-- on the new tables/columns were not exported and are inferred.
 -- ============================================================
+
+
+-- ── 004b: per-unit and total macros on recipes ──────────────
+-- (replaces the *_per_serving columns added by migration_004)
+alter table public.recipes
+  drop column if exists calories_per_serving,
+  drop column if exists protein_per_serving,
+  drop column if exists carbs_per_serving,
+  drop column if exists fat_per_serving,
+  add column if not exists calories_per_unit numeric default 0,
+  add column if not exists protein_per_unit  numeric default 0,
+  add column if not exists carbs_per_unit    numeric default 0,
+  add column if not exists fat_per_unit      numeric default 0,
+  add column if not exists calories_total    numeric default 0,
+  add column if not exists protein_total     numeric default 0,
+  add column if not exists carbs_total       numeric default 0,
+  add column if not exists fat_total         numeric default 0;
+
+
+-- ── 007: admin config ───────────────────────────────────────
+create table if not exists public.app_config (
+  key   text primary key,  -- PK inferred
+  value text not null
+);
+alter table public.app_config enable row level security;
+-- insert into public.app_config (key, value) values ('admin_user_id', '<admin uuid>');
+
+
+-- ── 008: ownership, visibility, moderation ──────────────────
+alter table public.ingredients
+  add column if not exists owner_user_id uuid,
+  add column if not exists is_public     boolean not null default true;
+
+alter table public.recipes
+  add column if not exists owner_user_id uuid,
+  add column if not exists is_public     boolean not null default true;
+
+alter table public.user_targets
+  add column if not exists show_public_foods boolean not null default true;
+
+create table if not exists public.moderation_requests (
+  id          uuid primary key default gen_random_uuid(),  -- PK inferred
+  user_id     uuid not null,
+  entity_type text not null,             -- 'ingredient' | 'recipe'
+  entity_id   integer not null,
+  status      text not null default 'pending',  -- 'pending' | 'approved' | 'rejected'
+  note        text,
+  admin_note  text,
+  created_at  timestamptz default now(),
+  reviewed_at timestamptz,
+  reviewed_by uuid
+);
+alter table public.moderation_requests enable row level security;
+
+
+-- ── 009: explicit protein target ────────────────────────────
+alter table public.user_targets
+  add column if not exists prot_min_g numeric default 120;
 
 
 -- ── Extensions ──────────────────────────────────────────────
